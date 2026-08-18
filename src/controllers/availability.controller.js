@@ -1,9 +1,60 @@
 import {
+    getAvailableSlots,
     getExceptions,
     createException,
     updateException,
     deleteException
 } from "../services/availability.service.js";
+
+
+export const getSlots = async (req, res) => {
+    try {
+        const {
+            practitionerId,
+            serviceId,
+            date
+        } = req.query;
+
+        if (!practitionerId || !serviceId || !date) {
+            return res.status(400).json({
+                error: "practitionerId, serviceId et date sont requis"
+            });
+        }
+
+        const slots = await getAvailableSlots({
+            practitionerId,
+            serviceId,
+            date
+        });
+
+        res.json(slots);
+
+    } catch (error) {
+        console.error(error);
+
+        switch (error.message) {
+            case "INVALID_DATE":
+                return res.status(400).json({
+                    error: "Date invalide"
+                });
+
+            case "SERVICE_NOT_FOUND":
+                return res.status(404).json({
+                    error: "Service introuvable ou inactif"
+                });
+
+            case "INVALID_EXCEPTION":
+                return res.status(500).json({
+                    error: "Exception de disponibilité invalide"
+                });
+
+            default:
+                return res.status(500).json({
+                    error: "Impossible de récupérer les créneaux"
+                });
+        }
+    }
+};
 
 
 export const getAvailabilityExceptions = async (req, res) => {

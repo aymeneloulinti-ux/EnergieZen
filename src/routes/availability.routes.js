@@ -1,6 +1,7 @@
 import { Router } from "express";
 
 import {
+    getSlots,
     getAvailabilityExceptions,
     createAvailabilityException,
     updateAvailabilityException,
@@ -11,6 +12,11 @@ import { authenticate } from "../middlewares/auth.middleware.js";
 import { requireRole } from "../middlewares/role.middleware.js";
 
 const router = Router();
+
+router.get(
+    "/slots",
+    getSlots
+);
 
 router.use(
     authenticate,

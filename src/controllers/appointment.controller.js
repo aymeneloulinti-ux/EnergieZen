@@ -1,16 +1,30 @@
 import {
-    createAppointment
-} from "../services/appointment.service.js";
-import {
-    getAvailableSlots
-} from "../services/availability.service.js";
+    createAppointment as createAppointmentService,
+    getClientAppointments,
+    cancelAppointment as cancelAppointmentService,
+    getAppointmentById
 
-export const createAppointmentController = async (req, res) => {
+} from "../services/appointment.service.js";
+
+
+export const createAppointment = async (req, res) => {
+
     try {
 
-        const appointment = await createAppointment(req.body);
+        const {
+            practitionerId,
+            serviceId,
+            startAt
+        } = req.body;
 
-        res.status(201).json(appointment);
+        const appointment = await createAppointmentService({
+            clientId: req.user.id,
+            practitionerId,
+            serviceId,
+            startAt
+        });
+
+        return res.status(201).json(appointment);
 
     } catch (error) {
 
@@ -18,9 +32,19 @@ export const createAppointmentController = async (req, res) => {
 
         switch (error.message) {
 
+            case "START_AT_REQUIRED":
+                return res.status(400).json({
+                    error: "La date et l'heure du rendez-vous sont obligatoires"
+                });
+
+            case "INVALID_START_AT":
+                return res.status(400).json({
+                    error: "La date et l'heure du rendez-vous sont invalides"
+                });
+
             case "SERVICE_NOT_FOUND":
                 return res.status(404).json({
-                    error: "Service introuvable"
+                    error: "Service introuvable ou inactif"
                 });
 
             case "PRACTITIONER_NOT_FOUND":
@@ -35,7 +59,7 @@ export const createAppointmentController = async (req, res) => {
 
             case "TIME_SLOT_UNAVAILABLE":
                 return res.status(409).json({
-                    error: "Ce créneau n'est plus disponible"
+                    error: "Ce créneau n'est pas disponible"
                 });
 
             default:
@@ -46,48 +70,86 @@ export const createAppointmentController = async (req, res) => {
     }
 };
 
-export const getAvailability = async (req, res) => {
+export const getMyAppointments = async (req, res) => {
+    try {
+        const appointments = await getClientAppointments(req.user.id);
+
+        res.json(appointments);
+
+    } catch (error) {
+        console.error(error);
+
+        return res.status(500).json({
+            error: "Impossible de récupérer les rendez-vous"
+        });
+    }
+};
+
+
+export const cancelAppointment = async (req, res) => {
 
     try {
 
-        const {
-            practitionerId,
-            serviceId,
-            date
-        } = req.query;
+        const { id } = req.params;
+        const { cancellationReason } = req.body;
 
-        if (!practitionerId || !serviceId || !date) {
-            return res.status(400).json({
-                error: "practitionerId, serviceId et date sont requis"
-            });
-        }
-
-        const slots = await getAvailableSlots({
-            practitionerId,
-            serviceId,
-            date
+        const appointment = await cancelAppointmentService({
+            clientId: req.user.id,
+            appointmentId: id,
+            cancellationReason
         });
 
-        res.json(slots);
+        return res.json(appointment);
 
     } catch (error) {
 
         console.error(error);
 
-        if (error.message === "SERVICE_NOT_FOUND") {
+        switch (error.message) {
+
+            case "APPOINTMENT_NOT_FOUND":
+                return res.status(404).json({
+                    error: "Rendez-vous introuvable"
+                });
+
+            case "APPOINTMENT_CANNOT_BE_CANCELLED":
+                return res.status(400).json({
+                    error: "Ce rendez-vous ne peut pas être annulé"
+                });
+
+            default:
+                return res.status(500).json({
+                    error: "Impossible d'annuler le rendez-vous"
+                });
+        }
+    }
+};
+
+export const getAppointment = async (req, res) => {
+
+    try {
+
+        const { id } = req.params;
+
+        const appointment = await getAppointmentById({
+            appointmentId: id,
+            clientId: req.user.id
+        });
+
+        return res.json(appointment);
+
+    } catch (error) {
+
+        console.error(error);
+
+        if (error.message === "APPOINTMENT_NOT_FOUND") {
             return res.status(404).json({
-                error: "Service introuvable"
+                error: "Rendez-vous introuvable"
             });
         }
 
-        if (error.message === "INVALID_DATE") {
-            return res.status(400).json({
-                error: "Date invalide"
-            });
-        }
-
-        res.status(500).json({
-            error: "Impossible de récupérer les disponibilités"
+        return res.status(500).json({
+            error: "Impossible de récupérer le rendez-vous"
         });
     }
 };
