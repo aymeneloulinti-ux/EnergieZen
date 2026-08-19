@@ -73,6 +73,30 @@ const request = async (
     };
 };
 
+const getLocalDate = (offset) => {
+    const date = new Date();
+    date.setDate(date.getDate() + offset);
+
+    return new Intl.DateTimeFormat("en-CA", {
+        timeZone: "Europe/Brussels"
+    }).format(date);
+};
+
+const findNextAvailableSlot = async () => {
+    for (let offset = 1; offset <= 30; offset++) {
+        const date = getLocalDate(offset);
+        const response = await request(
+            `/availability/slots?practitionerId=${fixtures.practitioner.id}&serviceId=${fixtures.service.id}&date=${date}`
+        );
+
+        if (response.status === 200 && response.data.length > 0) {
+            return response.data[0];
+        }
+    }
+
+    return null;
+};
+
 
 // ============================================================
 // AUTH
@@ -141,6 +165,36 @@ test("AUTH - Login admin", async () => {
 });
 
 
+test("AUTH - Identifiants invalides", async () => {
+
+    const response = await request(
+        "/auth/login",
+        {
+            method: "POST",
+            body: {
+                email: credentials.client.email,
+                password: "mot-de-passe-invalide"
+            }
+        }
+    );
+
+    assert.equal(response.status, 401);
+});
+
+
+test("AUTH - En-tête Bearer mal formé", async () => {
+
+    const response = await request(
+        "/users/me",
+        {
+            token: "Basic token-invalide"
+        }
+    );
+
+    assert.equal(response.status, 401);
+});
+
+
 // ============================================================
 // USERS
 // ============================================================
@@ -198,6 +252,39 @@ test("USERS - Admin peut accéder aux utilisateurs", async () => {
 });
 
 
+test("USERS - Changement de mot de passe sans données", async () => {
+
+    const response = await request(
+        "/users/me/password",
+        {
+            method: "PATCH",
+            token: tokens.client,
+            body: {}
+        }
+    );
+
+    assert.equal(response.status, 400);
+});
+
+
+test("USERS - Nouveau mot de passe trop court", async () => {
+
+    const response = await request(
+        "/users/me/password",
+        {
+            method: "PATCH",
+            token: tokens.client,
+            body: {
+                currentPassword: credentials.client.password,
+                newPassword: "court"
+            }
+        }
+    );
+
+    assert.equal(response.status, 400);
+});
+
+
 // ============================================================
 // SERVICES
 // ============================================================
@@ -238,6 +325,46 @@ test("SERVICES - Service inexistant", async () => {
 });
 
 
+test("SERVICES - Client interdit de créer un service", async () => {
+
+    const response = await request(
+        "/services",
+        {
+            method: "POST",
+            token: tokens.client,
+            body: {
+                name: "Service interdit",
+                slug: "service-interdit",
+                duration: 30,
+                price: 20
+            }
+        }
+    );
+
+    assert.equal(response.status, 403);
+});
+
+
+test("SERVICES - Durée invalide refusée", async () => {
+
+    const response = await request(
+        "/services",
+        {
+            method: "POST",
+            token: tokens.admin,
+            body: {
+                name: "Service invalide",
+                slug: `service-invalide-${Date.now()}`,
+                duration: 0,
+                price: 20
+            }
+        }
+    );
+
+    assert.equal(response.status, 400);
+});
+
+
 // ============================================================
 // PRACTITIONERS
 // ============================================================
@@ -271,23 +398,24 @@ test("PRACTITIONERS - Aucun password exposé", async () => {
             undefined
         );
     }
+});
 
 
-    // ============================================================
-    // AVAILABILITY
-    // ============================================================
+// ============================================================
+// AVAILABILITY
+// ============================================================
 
-    test("AVAILABILITY - Paramètres manquants", async () => {
+test("AVAILABILITY - Paramètres manquants", async () => {
 
         const response = await request(
             "/availability/slots"
         );
 
         assert.equal(response.status, 400);
-    });
+});
 
 
-    test("AVAILABILITY - Créneaux publics", async () => {
+test("AVAILABILITY - Créneaux publics", async () => {
 
         const response = await request(
             `/availability/slots?practitionerId=${fixtures.practitioner.id}&serviceId=${fixtures.service.id}&date=2026-08-20`
@@ -301,10 +429,10 @@ test("PRACTITIONERS - Aucun password exposé", async () => {
             assert.ok(slot.endAt);
             assert.match(slot.time, /^\d{2}:\d{2}$/);
         }
-    });
+});
 
 
-    test("AVAILABILITY - Horaires hebdomadaires du praticien", async () => {
+test("AVAILABILITY - Horaires hebdomadaires du praticien", async () => {
 
         const response = await request(
             "/availability/weekly",
@@ -315,10 +443,10 @@ test("PRACTITIONERS - Aucun password exposé", async () => {
 
         assert.equal(response.status, 200);
         assert.ok(Array.isArray(response.data));
-    });
+});
 
 
-    test("AVAILABILITY - Le client ne peut pas gérer les horaires", async () => {
+test("AVAILABILITY - Le client ne peut pas gérer les horaires", async () => {
 
         const response = await request(
             "/availability/weekly",
@@ -328,10 +456,10 @@ test("PRACTITIONERS - Aucun password exposé", async () => {
         );
 
         assert.equal(response.status, 403);
-    });
+});
 
 
-    test("AVAILABILITY - Exceptions du praticien", async () => {
+test("AVAILABILITY - Exceptions du praticien", async () => {
 
         const response = await request(
             "/availability/exceptions",
@@ -342,14 +470,59 @@ test("PRACTITIONERS - Aucun password exposé", async () => {
 
         assert.equal(response.status, 200);
         assert.ok(Array.isArray(response.data));
+});
+
+
+    test("AVAILABILITY - Horaires hebdomadaires invalides", async () => {
+
+        const response = await request(
+            "/availability/weekly",
+            {
+                method: "PUT",
+                token: tokens.practitioner,
+                body: {
+                    availabilities: [
+                        {
+                            dayOfWeek: "MONDAY",
+                            startTime: "14:00",
+                            endTime: "16:00"
+                        },
+                        {
+                            dayOfWeek: "MONDAY",
+                            startTime: "15:00",
+                            endTime: "17:00"
+                        }
+                    ]
+                }
+            }
+        );
+
+        assert.equal(response.status, 400);
     });
 
 
-    // ============================================================
-    // APPOINTMENTS
-    // ============================================================
+    test("AVAILABILITY - Exception sans type refusée", async () => {
 
-    test("APPOINTMENTS - Liste des rendez-vous du client", async () => {
+        const response = await request(
+            "/availability/exceptions",
+            {
+                method: "POST",
+                token: tokens.practitioner,
+                body: {
+                    date: getLocalDate(60)
+                }
+            }
+        );
+
+        assert.equal(response.status, 400);
+    });
+
+
+// ============================================================
+// APPOINTMENTS
+// ============================================================
+
+test("APPOINTMENTS - Liste des rendez-vous du client", async () => {
 
         const response = await request(
             "/appointments/my",
@@ -360,10 +533,10 @@ test("PRACTITIONERS - Aucun password exposé", async () => {
 
         assert.equal(response.status, 200);
         assert.ok(Array.isArray(response.data));
-    });
+});
 
 
-    test("APPOINTMENTS - Liste des rendez-vous du praticien", async () => {
+test("APPOINTMENTS - Liste des rendez-vous du praticien", async () => {
 
         const response = await request(
             "/appointments/practitioner",
@@ -374,10 +547,10 @@ test("PRACTITIONERS - Aucun password exposé", async () => {
 
         assert.equal(response.status, 200);
         assert.ok(Array.isArray(response.data));
-    });
+});
 
 
-    test("APPOINTMENTS - Le client ne peut pas accéder à la liste praticien", async () => {
+test("APPOINTMENTS - Le client ne peut pas accéder à la liste praticien", async () => {
 
         const response = await request(
             "/appointments/practitioner",
@@ -387,10 +560,10 @@ test("PRACTITIONERS - Aucun password exposé", async () => {
         );
 
         assert.equal(response.status, 403);
-    });
+});
 
 
-    test("APPOINTMENTS - Création sans date refusée", async () => {
+test("APPOINTMENTS - Création sans date refusée", async () => {
 
         const response = await request(
             "/appointments",
@@ -405,8 +578,58 @@ test("PRACTITIONERS - Aucun password exposé", async () => {
         );
 
         assert.equal(response.status, 400);
-    });
 });
+
+
+    test("APPOINTMENTS - Réservation puis annulation par le client", async () => {
+
+        const slot = await findNextAvailableSlot();
+
+        assert.ok(slot, "Aucun créneau disponible pour le test");
+
+        const creation = await request(
+            "/appointments",
+            {
+                method: "POST",
+                token: tokens.client,
+                body: {
+                    practitionerId: fixtures.practitioner.id,
+                    serviceId: fixtures.service.id,
+                    startAt: slot.startAt
+                }
+            }
+        );
+
+        assert.equal(creation.status, 201);
+        assert.equal(creation.data?.status, "PENDING");
+        assert.ok(creation.data?.id);
+
+        const appointmentId = creation.data.id;
+
+        const details = await request(
+            `/appointments/${appointmentId}`,
+            {
+                token: tokens.client
+            }
+        );
+
+        assert.equal(details.status, 200);
+        assert.equal(details.data?.id, appointmentId);
+
+        const cancellation = await request(
+            `/appointments/${appointmentId}/cancel`,
+            {
+                method: "PATCH",
+                token: tokens.client,
+                body: {
+                    cancellationReason: "Test d’intégration"
+                }
+            }
+        );
+
+        assert.equal(cancellation.status, 200);
+        assert.equal(cancellation.data?.status, "CANCELLED");
+    });
 
 
 // ============================================================

@@ -228,13 +228,18 @@ npm test
 La suite couvre notamment :
 
 - la connexion des comptes client, praticien et administrateur ;
+- le refus d’identifiants invalides et d’en-têtes Bearer mal formés ;
 - la consultation et la protection des profils utilisateurs ;
+- la validation du changement de mot de passe ;
 - l’accès public aux services et aux praticiens ;
 - la recherche d’un service par slug ;
+- le refus des opérations de service par un client et des données invalides ;
 - le healthcheck et la connexion à la base de données ;
 - la récupération des créneaux, horaires hebdomadaires et exceptions de disponibilité ;
+- le refus d’horaires qui se chevauchent et d’exceptions incomplètes ;
 - la consultation des rendez-vous client et praticien ;
 - la validation d’une création de rendez-vous incomplète ;
+- la réservation d’un créneau réel, sa consultation puis son annulation ;
 - l’accès administrateur au dashboard ;
 - les refus d’accès liés aux rôles ;
 - les routes protégées sans token ou avec un token invalide ;
