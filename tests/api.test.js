@@ -21,6 +21,10 @@ const credentials = {
 };
 
 const tokens = {};
+const fixtures = {
+    service: null,
+    practitioner: null
+};
 
 
 // ============================================================
@@ -73,6 +77,18 @@ const request = async (
 // ============================================================
 // AUTH
 // ============================================================
+
+test("HEALTH - API et base de données disponibles", async () => {
+
+    const response = await request(
+        "/health"
+    );
+
+    assert.equal(response.status, 200);
+    assert.equal(response.data?.status, "ok");
+    assert.equal(response.data?.database, "connected");
+    assert.equal(typeof response.data?.users, "number");
+});
 
 test("AUTH - Login client", async () => {
 
@@ -194,6 +210,21 @@ test("SERVICES - Liste publique", async () => {
 
     assert.equal(response.status, 200);
     assert.ok(Array.isArray(response.data));
+
+    assert.ok(response.data.length > 0);
+    fixtures.service = response.data[0];
+});
+
+
+test("SERVICES - Recherche par slug", async () => {
+
+    const response = await request(
+        `/services/slug/${fixtures.service.slug}`
+    );
+
+    assert.equal(response.status, 200);
+    assert.equal(response.data?.id, fixtures.service.id);
+    assert.equal(response.data?.slug, fixtures.service.slug);
 });
 
 
@@ -219,6 +250,9 @@ test("PRACTITIONERS - Liste publique", async () => {
 
     assert.equal(response.status, 200);
     assert.ok(Array.isArray(response.data));
+
+    assert.ok(response.data.length > 0);
+    fixtures.practitioner = response.data[0];
 });
 
 
@@ -237,6 +271,141 @@ test("PRACTITIONERS - Aucun password exposé", async () => {
             undefined
         );
     }
+
+
+    // ============================================================
+    // AVAILABILITY
+    // ============================================================
+
+    test("AVAILABILITY - Paramètres manquants", async () => {
+
+        const response = await request(
+            "/availability/slots"
+        );
+
+        assert.equal(response.status, 400);
+    });
+
+
+    test("AVAILABILITY - Créneaux publics", async () => {
+
+        const response = await request(
+            `/availability/slots?practitionerId=${fixtures.practitioner.id}&serviceId=${fixtures.service.id}&date=2026-08-20`
+        );
+
+        assert.equal(response.status, 200);
+        assert.ok(Array.isArray(response.data));
+
+        for (const slot of response.data) {
+            assert.ok(slot.startAt);
+            assert.ok(slot.endAt);
+            assert.match(slot.time, /^\d{2}:\d{2}$/);
+        }
+    });
+
+
+    test("AVAILABILITY - Horaires hebdomadaires du praticien", async () => {
+
+        const response = await request(
+            "/availability/weekly",
+            {
+                token: tokens.practitioner
+            }
+        );
+
+        assert.equal(response.status, 200);
+        assert.ok(Array.isArray(response.data));
+    });
+
+
+    test("AVAILABILITY - Le client ne peut pas gérer les horaires", async () => {
+
+        const response = await request(
+            "/availability/weekly",
+            {
+                token: tokens.client
+            }
+        );
+
+        assert.equal(response.status, 403);
+    });
+
+
+    test("AVAILABILITY - Exceptions du praticien", async () => {
+
+        const response = await request(
+            "/availability/exceptions",
+            {
+                token: tokens.practitioner
+            }
+        );
+
+        assert.equal(response.status, 200);
+        assert.ok(Array.isArray(response.data));
+    });
+
+
+    // ============================================================
+    // APPOINTMENTS
+    // ============================================================
+
+    test("APPOINTMENTS - Liste des rendez-vous du client", async () => {
+
+        const response = await request(
+            "/appointments/my",
+            {
+                token: tokens.client
+            }
+        );
+
+        assert.equal(response.status, 200);
+        assert.ok(Array.isArray(response.data));
+    });
+
+
+    test("APPOINTMENTS - Liste des rendez-vous du praticien", async () => {
+
+        const response = await request(
+            "/appointments/practitioner",
+            {
+                token: tokens.practitioner
+            }
+        );
+
+        assert.equal(response.status, 200);
+        assert.ok(Array.isArray(response.data));
+    });
+
+
+    test("APPOINTMENTS - Le client ne peut pas accéder à la liste praticien", async () => {
+
+        const response = await request(
+            "/appointments/practitioner",
+            {
+                token: tokens.client
+            }
+        );
+
+        assert.equal(response.status, 403);
+    });
+
+
+    test("APPOINTMENTS - Création sans date refusée", async () => {
+
+        const response = await request(
+            "/appointments",
+            {
+                method: "POST",
+                token: tokens.client,
+                body: {
+                    practitionerId: fixtures.practitioner.id,
+                    serviceId: fixtures.service.id
+                }
+            }
+        );
+
+        assert.equal(response.status, 400);
+    });
 });
 
 

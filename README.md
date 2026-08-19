@@ -27,6 +27,7 @@ API REST du projet **EnergieZen**, une plateforme de réservation de soins éner
 - **date-fns-tz** pour la gestion des horaires en heure de Bruxelles
 - **Helmet** et **CORS** pour les middlewares HTTP
 - **Nodemon** pour le développement
+- **Node.js Test Runner** (`node:test`) pour les tests d’intégration HTTP
 
 ## Architecture
 
@@ -46,6 +47,9 @@ prisma/
 ├── schema.prisma          # Modèles, relations et enums
 ├── seed.js                # Données de démonstration
 └── migrations/            # Historique des migrations PostgreSQL
+
+tests/
+└── api.test.js             # Tests d’intégration de l’API REST
 ```
 
 Le code suit une séparation simple entre les routes, les controllers et les services. Les controllers gèrent les statuts HTTP et les messages d’erreur, tandis que les services portent les règles métier et les requêtes Prisma.
@@ -206,7 +210,37 @@ npx prisma studio
 
 ## Tests
 
-Aucun framework de tests n’est encore configuré dans le projet. La commande `npm test` est actuellement un placeholder qui retourne une erreur.
+Les tests utilisent le runner natif de Node.js (`node:test`) et appellent l’API via `fetch`. Il s’agit de tests d’intégration qui nécessitent une instance du serveur en cours d’exécution.
+
+Dans un premier terminal, préparer la base de données puis démarrer l’API sur le port attendu par les tests :
+
+```bash
+node prisma/seed.js
+PORT=8080 npm start
+```
+
+Dans un second terminal, lancer la suite :
+
+```bash
+npm test
+```
+
+La suite couvre notamment :
+
+- la connexion des comptes client, praticien et administrateur ;
+- la consultation et la protection des profils utilisateurs ;
+- l’accès public aux services et aux praticiens ;
+- la recherche d’un service par slug ;
+- le healthcheck et la connexion à la base de données ;
+- la récupération des créneaux, horaires hebdomadaires et exceptions de disponibilité ;
+- la consultation des rendez-vous client et praticien ;
+- la validation d’une création de rendez-vous incomplète ;
+- l’accès administrateur au dashboard ;
+- les refus d’accès liés aux rôles ;
+- les routes protégées sans token ou avec un token invalide ;
+- la vérification qu’aucun mot de passe n’est exposé dans les réponses API.
+
+Les tests s’appuient sur les comptes de démonstration présents dans `prisma/seed.js`. Ils doivent donc être exécutés sur une base locale dédiée et réinitialisée si nécessaire avant une nouvelle exécution.
 
 ## Licence
 
