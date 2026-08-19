@@ -2,7 +2,12 @@ import {
     createAppointment as createAppointmentService,
     getClientAppointments,
     cancelAppointment as cancelAppointmentService,
-    getAppointmentById
+    getAppointmentById,
+    getPractitionerAppointments as getPractitionerAppointmentsService,
+    confirmAppointment as confirmAppointmentService,
+    cancelAppointmentByPractitioner as cancelAppointmentByPractitionerService,
+    completeAppointment as completeAppointmentService,
+    markAppointmentAsNoShow as markAppointmentAsNoShowService
 
 } from "../services/appointment.service.js";
 
@@ -151,5 +156,211 @@ export const getAppointment = async (req, res) => {
         return res.status(500).json({
             error: "Impossible de récupérer le rendez-vous"
         });
+    }
+};
+
+export const getPractitionerAppointments = async (req, res) => {
+
+    try {
+
+        const appointments = await getPractitionerAppointmentsService({
+            userId: req.user.id
+        });
+
+        return res.json(appointments);
+
+    } catch (error) {
+
+        console.error(error);
+
+        if (error.message === "PRACTITIONER_NOT_FOUND") {
+            return res.status(404).json({
+                error: "Praticien introuvable"
+            });
+        }
+
+        return res.status(500).json({
+            error: "Impossible de récupérer les rendez-vous"
+        });
+    }
+};
+
+
+export const confirmAppointment = async (req, res) => {
+
+    try {
+
+        const { id } = req.params;
+
+        const appointment = await confirmAppointmentService({
+            userId: req.user.id,
+            appointmentId: id
+        });
+
+        return res.json(appointment);
+
+    } catch (error) {
+
+        console.error(error);
+
+        switch (error.message) {
+
+            case "PRACTITIONER_NOT_FOUND":
+                return res.status(404).json({
+                    error: "Praticien introuvable"
+                });
+
+            case "APPOINTMENT_NOT_FOUND":
+                return res.status(404).json({
+                    error: "Rendez-vous introuvable"
+                });
+
+            case "INVALID_APPOINTMENT_STATUS":
+                return res.status(400).json({
+                    error: "Ce rendez-vous ne peut pas être confirmé"
+                });
+
+            default:
+                return res.status(500).json({
+                    error: "Impossible de confirmer le rendez-vous"
+                });
+        }
+    }
+};
+
+export const cancelAppointmentByPractitioner = async (req, res) => {
+
+    try {
+
+        const { id } = req.params;
+        const { cancellationReason } = req.body;
+
+        const appointment =
+            await cancelAppointmentByPractitionerService({
+                userId: req.user.id,
+                appointmentId: id,
+                cancellationReason
+            });
+
+        return res.json(appointment);
+
+    } catch (error) {
+
+        console.error(error);
+
+        switch (error.message) {
+
+            case "PRACTITIONER_NOT_FOUND":
+                return res.status(404).json({
+                    error: "Praticien introuvable"
+                });
+
+            case "APPOINTMENT_NOT_FOUND":
+                return res.status(404).json({
+                    error: "Rendez-vous introuvable"
+                });
+
+            case "CANCELLATION_REASON_REQUIRED":
+                return res.status(400).json({
+                    error: "Le motif d'annulation est obligatoire"
+                });
+
+            case "INVALID_APPOINTMENT_STATUS":
+                return res.status(400).json({
+                    error: "Ce rendez-vous ne peut pas être annulé"
+                });
+
+            default:
+                return res.status(500).json({
+                    error: "Impossible d'annuler le rendez-vous"
+                });
+        }
+    }
+};
+
+
+export const completeAppointment = async (req, res) => {
+
+    try {
+
+        const { id } = req.params;
+
+        const appointment =
+            await completeAppointmentService({
+                userId: req.user.id,
+                appointmentId: id
+            });
+
+        return res.json(appointment);
+
+    } catch (error) {
+
+        console.error(error);
+
+        switch (error.message) {
+
+            case "PRACTITIONER_NOT_FOUND":
+                return res.status(404).json({
+                    error: "Praticien introuvable"
+                });
+
+            case "APPOINTMENT_NOT_FOUND":
+                return res.status(404).json({
+                    error: "Rendez-vous introuvable"
+                });
+
+            case "INVALID_APPOINTMENT_STATUS":
+                return res.status(400).json({
+                    error: "Seul un rendez-vous confirmé peut être terminé"
+                });
+
+            default:
+                return res.status(500).json({
+                    error: "Impossible de terminer le rendez-vous"
+                });
+        }
+    }
+};
+
+export const markAppointmentAsNoShow = async (req, res) => {
+
+    try {
+
+        const { id } = req.params;
+
+        const appointment =
+            await markAppointmentAsNoShowService({
+                userId: req.user.id,
+                appointmentId: id
+            });
+
+        return res.json(appointment);
+
+    } catch (error) {
+
+        console.error(error);
+
+        switch (error.message) {
+
+            case "PRACTITIONER_NOT_FOUND":
+                return res.status(404).json({
+                    error: "Praticien introuvable"
+                });
+
+            case "APPOINTMENT_NOT_FOUND":
+                return res.status(404).json({
+                    error: "Rendez-vous introuvable"
+                });
+
+            case "INVALID_APPOINTMENT_STATUS":
+                return res.status(400).json({
+                    error: "Seul un rendez-vous confirmé peut être marqué comme absent"
+                });
+
+            default:
+                return res.status(500).json({
+                    error: "Impossible de marquer le rendez-vous comme absent"
+                });
+        }
     }
 };

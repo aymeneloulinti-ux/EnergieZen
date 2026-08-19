@@ -140,11 +140,7 @@ export const createAppointment = async ({
             endAt: end,
             status: "PENDING"
         },
-        include: {
-            client: true,
-            practitioner: true,
-            service: true
-        }
+        include: appointmentInclude
     });
 };
 
@@ -152,37 +148,14 @@ export const createAppointment = async ({
 export const getClientAppointments = async (clientId) => {
 
     return prisma.appointment.findMany({
-
         where: {
-
             clientId
-
         },
-
         orderBy: {
-
             startAt: "asc"
-
         },
-
-        include: {
-
-            practitioner: {
-
-                include: {
-
-                    user: true
-
-                }
-
-            },
-
-            service: true
-
-        }
-
+        include: appointmentInclude
     });
-
 };
 
 
@@ -221,11 +194,7 @@ export const cancelAppointment = async ({
             status: "CANCELLED",
             cancellationReason: cancellationReason || null
         },
-        include: {
-            client: true,
-            practitioner: true,
-            service: true
-        }
+        include: appointmentInclude
     });
 };
 
@@ -239,15 +208,7 @@ export const getAppointmentById = async ({
             id: appointmentId,
             clientId
         },
-        include: {
-            client: true,
-            practitioner: {
-                include: {
-                    user: true
-                }
-            },
-            service: true
-        }
+        include: appointmentInclude
     });
 
     if (!appointment) {
@@ -255,4 +216,243 @@ export const getAppointmentById = async ({
     }
 
     return appointment;
+};
+
+
+export const getPractitionerAppointments = async ({
+    userId
+}) => {
+
+    const practitioner = await prisma.practitioner.findUnique({
+        where: {
+            userId
+        }
+    });
+
+    if (!practitioner) {
+        throw new Error("PRACTITIONER_NOT_FOUND");
+    }
+
+    return prisma.appointment.findMany({
+        where: {
+            practitionerId: practitioner.id
+        },
+        include: appointmentInclude,
+        orderBy: {
+            startAt: "asc"
+        }
+    });
+};
+
+
+export const confirmAppointment = async ({
+    userId,
+    appointmentId
+}) => {
+
+    const practitioner = await prisma.practitioner.findUnique({
+        where: {
+            userId
+        }
+    });
+
+    if (!practitioner) {
+        throw new Error("PRACTITIONER_NOT_FOUND");
+    }
+
+    const appointment = await prisma.appointment.findFirst({
+        where: {
+            id: appointmentId,
+            practitionerId: practitioner.id
+        }
+    });
+
+    if (!appointment) {
+        throw new Error("APPOINTMENT_NOT_FOUND");
+    }
+
+    if (appointment.status !== "PENDING") {
+        throw new Error("INVALID_APPOINTMENT_STATUS");
+    }
+
+    return prisma.appointment.update({
+        where: {
+            id: appointmentId
+        },
+        data: {
+            status: "CONFIRMED"
+        },
+        include: appointmentInclude
+    });
+};
+
+export const cancelAppointmentByPractitioner = async ({
+    userId,
+    appointmentId,
+    cancellationReason
+}) => {
+
+    const practitioner = await prisma.practitioner.findUnique({
+        where: {
+            userId
+        }
+    });
+
+    if (!practitioner) {
+        throw new Error("PRACTITIONER_NOT_FOUND");
+    }
+
+    const appointment = await prisma.appointment.findFirst({
+        where: {
+            id: appointmentId,
+            practitionerId: practitioner.id
+        }
+    });
+
+    if (!appointment) {
+        throw new Error("APPOINTMENT_NOT_FOUND");
+    }
+
+    if (
+        appointment.status === "CANCELLED" ||
+        appointment.status === "COMPLETED"
+    ) {
+        throw new Error("INVALID_APPOINTMENT_STATUS");
+    }
+
+    if (!cancellationReason) {
+        throw new Error("CANCELLATION_REASON_REQUIRED");
+    }
+
+    return prisma.appointment.update({
+        where: {
+            id: appointmentId
+        },
+        data: {
+            status: "CANCELLED",
+            cancellationReason
+        },
+        include: appointmentInclude
+    });
+};
+
+
+export const completeAppointment = async ({
+    userId,
+    appointmentId
+}) => {
+
+    const practitioner = await prisma.practitioner.findUnique({
+        where: {
+            userId
+        }
+    });
+
+    if (!practitioner) {
+        throw new Error("PRACTITIONER_NOT_FOUND");
+    }
+
+    const appointment = await prisma.appointment.findFirst({
+        where: {
+            id: appointmentId,
+            practitionerId: practitioner.id
+        }
+    });
+
+    if (!appointment) {
+        throw new Error("APPOINTMENT_NOT_FOUND");
+    }
+
+    if (appointment.status !== "CONFIRMED") {
+        throw new Error("INVALID_APPOINTMENT_STATUS");
+    }
+
+    return prisma.appointment.update({
+        where: {
+            id: appointmentId
+        },
+        data: {
+            status: "COMPLETED"
+        },
+        include: appointmentInclude
+    });
+};
+
+
+export const markAppointmentAsNoShow = async ({
+    userId,
+    appointmentId
+}) => {
+
+    const practitioner = await prisma.practitioner.findUnique({
+        where: {
+            userId
+        }
+    });
+
+    if (!practitioner) {
+        throw new Error("PRACTITIONER_NOT_FOUND");
+    }
+
+    const appointment = await prisma.appointment.findFirst({
+        where: {
+            id: appointmentId,
+            practitionerId: practitioner.id
+        }
+    });
+
+    if (!appointment) {
+        throw new Error("APPOINTMENT_NOT_FOUND");
+    }
+
+    if (appointment.status !== "CONFIRMED") {
+        throw new Error("INVALID_APPOINTMENT_STATUS");
+    }
+
+    return prisma.appointment.update({
+        where: {
+            id: appointmentId
+        },
+        data: {
+            status: "NO_SHOW"
+        },
+        include: appointmentInclude
+    });
+};
+
+
+
+
+
+// CONSTANTE PRISMA
+const appointmentInclude = {
+    client: {
+        select: {
+            id: true,
+            email: true,
+            firstName: true,
+            lastName: true,
+            phone: true,
+            role: true
+        }
+    },
+    practitioner: {
+        select: {
+            id: true,
+            userId: true,
+            createdAt: true,
+            updatedAt: true,
+            user: {
+                select: {
+                    id: true,
+                    email: true,
+                    firstName: true,
+                    lastName: true,
+                    phone: true,
+                    role: true
+                }
+            }
+        }
+    },
+    service: true
 };

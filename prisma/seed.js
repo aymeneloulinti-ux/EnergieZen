@@ -15,6 +15,36 @@ async function main() {
     console.log("🌱 Seeding database...");
 
     // --------------------
+    // Admin
+    // --------------------
+
+    const adminPassword = await bcrypt.hash(
+        "Admin123!",
+        12
+    );
+
+    await prisma.user.upsert({
+        where: {
+            email: "admin@energiezen.be"
+        },
+        update: {
+            firstName: "Admin",
+            lastName: "EnergieZen",
+            phone: "+32 470 00 00 00",
+            role: "ADMIN",
+            password: adminPassword,
+        },
+        create: {
+            email: "admin@energiezen.be",
+            password: adminPassword,
+            firstName: "Admin",
+            lastName: "EnergieZen",
+            phone: "+32 470 00 00 00",
+            role: "ADMIN",
+        },
+    });
+
+    // --------------------
     // Practitioner
     // --------------------
 
@@ -116,13 +146,24 @@ async function main() {
         });
     }
 
+    // --------------------
+    // Services
+    // --------------------
+    const clientPassword = await bcrypt.hash(
+        "Client123!",
+        12
+    );
+
     const client = await prisma.user.upsert({
         where: {
             email: "client@test.be"
         },
-        update: {},
+        update: {
+            password: clientPassword,
+        },
         create: {
             email: "client@test.be",
+            password: clientPassword,
             firstName: "Jean",
             lastName: "Dupont",
             phone: "+32 470 11 22 33",

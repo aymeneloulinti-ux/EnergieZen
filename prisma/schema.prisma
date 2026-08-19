@@ -48,6 +48,7 @@ model User {
   firstName String
   lastName  String
   phone     String?
+  active Boolean @default(true)
 
   role UserRole @default(CLIENT)
 

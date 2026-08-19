@@ -74,6 +74,10 @@ export const login = async ({
         throw new Error("INVALID_CREDENTIALS");
     }
 
+    if (!user.active) {
+        throw new Error("ACCOUNT_DISABLED");
+    }
+
     const token = generateToken(user);
 
     return {

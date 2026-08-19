@@ -4,7 +4,12 @@ import {
     createAppointment,
     getMyAppointments,
     cancelAppointment,
-    getAppointment
+    getAppointment,
+    getPractitionerAppointments,
+    confirmAppointment,
+    cancelAppointmentByPractitioner,
+    completeAppointment,
+    markAppointmentAsNoShow
 } from "../controllers/appointment.controller.js";
 
 import { authenticate } from "../middlewares/auth.middleware.js";
@@ -26,6 +31,41 @@ router.post(
     "/",
     requireRole("CLIENT"),
     createAppointment
+);
+
+// Récupérer les rendez-vous du practicien
+router.get(
+    "/practitioner",
+    requireRole("PRACTITIONER", "ADMIN"),
+    getPractitionerAppointments
+);
+
+// Confirmer un rendez vous (coté practicien)
+router.patch(
+    "/:id/confirm",
+    requireRole("PRACTITIONER", "ADMIN"),
+    confirmAppointment
+);
+
+// Annuler un rendez-vous (coté practicien)
+router.patch(
+    "/:id/cancel-by-practitioner",
+    requireRole("PRACTITIONER", "ADMIN"),
+    cancelAppointmentByPractitioner
+);
+
+// Statut de rendez-vous complété
+router.patch(
+    "/:id/complete",
+    requireRole("PRACTITIONER", "ADMIN"),
+    completeAppointment
+);
+
+// Statut de rendez-vous "NO_SHOW"
+router.patch(
+    "/:id/no-show",
+    requireRole("PRACTITIONER", "ADMIN"),
+    markAppointmentAsNoShow
 );
 
 // Récupérer un rendez-vous

@@ -47,6 +47,12 @@ export const loginUser = async (req, res) => {
             });
         }
 
+        if (error.message === "ACCOUNT_DISABLED") {
+            return res.status(403).json({
+                error: "Ce compte est désactivé"
+            });
+        }
+
         res.status(500).json({
             error: "Impossible de se connecter"
         });
