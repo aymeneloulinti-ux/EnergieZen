@@ -236,6 +236,124 @@ export const getAppointmentById = async ({
     return appointment;
 };
 
+export const updateAppointment = async ({
+    clientId,
+    appointmentId,
+    startAt
+}) => {
+    if (!startAt) {
+        throw new Error("START_AT_REQUIRED");
+    }
+
+    const start = new Date(startAt);
+
+    if (Number.isNaN(start.getTime())) {
+        throw new Error("INVALID_START_AT");
+    }
+
+    const appointment = await prisma.appointment.findFirst({
+        where: {
+            id: appointmentId,
+            clientId
+        },
+        include: {
+            service: true,
+            practitioner: true
+        }
+    });
+
+    if (!appointment) {
+        throw new Error("APPOINTMENT_NOT_FOUND");
+    }
+
+    if (
+        appointment.status === "CANCELLED" ||
+        appointment.status === "COMPLETED" ||
+        appointment.status === "NO_SHOW"
+    ) {
+        throw new Error("APPOINTMENT_CANNOT_BE_UPDATED");
+    }
+
+    const service = await prisma.service.findUnique({
+        where: {
+            id: appointment.serviceId
+        }
+    });
+
+    if (!service || !service.active) {
+        throw new Error("SERVICE_NOT_FOUND");
+    }
+
+    const currentLocalDate = formatInTimeZone(new Date(), APP_TIMEZONE, "yyyy-MM-dd");
+    const currentLocalTime = formatInTimeZone(new Date(), APP_TIMEZONE, "HH:mm");
+    const targetLocalDate = formatInTimeZone(start, APP_TIMEZONE, "yyyy-MM-dd");
+    const targetLocalTime = formatInTimeZone(start, APP_TIMEZONE, "HH:mm");
+
+    if (targetLocalDate < currentLocalDate) {
+        throw new Error("PAST_DATE");
+    }
+
+    if (targetLocalDate === currentLocalDate && targetLocalTime <= currentLocalTime) {
+        throw new Error("PAST_TIME");
+    }
+
+    const end = new Date(
+        start.getTime() + service.duration * 60 * 1000
+    );
+
+    const localDate = targetLocalDate;
+    const availability = await getAvailableSlots({
+        practitionerId: appointment.practitionerId,
+        serviceId: appointment.serviceId,
+        date: localDate
+    });
+
+    const matchingSlot = availability.find((slot) => {
+        return (
+            slot.state === "available" &&
+            slot.startAt.getTime() === start.getTime() &&
+            slot.endAt.getTime() === end.getTime()
+        );
+    });
+
+    if (!matchingSlot) {
+        throw new Error("TIME_SLOT_UNAVAILABLE");
+    }
+
+    const overlappingAppointment = await prisma.appointment.findFirst({
+        where: {
+            practitionerId: appointment.practitionerId,
+            status: {
+                not: "CANCELLED"
+            },
+            id: {
+                not: appointmentId
+            },
+            startAt: {
+                lt: end
+            },
+            endAt: {
+                gt: start
+            }
+        }
+    });
+
+    if (overlappingAppointment) {
+        throw new Error("TIME_SLOT_UNAVAILABLE");
+    }
+
+    return prisma.appointment.update({
+        where: {
+            id: appointmentId
+        },
+        data: {
+            startAt: start,
+            endAt: end
+        },
+        include: appointmentInclude
+    });
+};
+
 
 export const getPractitionerAppointments = async ({
     userId

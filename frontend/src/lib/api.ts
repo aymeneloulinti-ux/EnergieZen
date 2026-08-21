@@ -134,11 +134,13 @@ export const getAvailability = ({
     `/availability/slots?practitionerId=${encodeURIComponent(practitionerId)}&serviceId=${encodeURIComponent(serviceId)}&date=${encodeURIComponent(date)}`,
   );
 
+export type ApiAppointmentStatus = "PENDING" | "CONFIRMED" | "CANCELLED" | "COMPLETED" | "NO_SHOW";
+
 export type ApiAppointment = {
   id: string;
   startAt: string;
   endAt: string;
-  status: "PENDING" | "CONFIRMED" | "CANCELLED" | "COMPLETED" | "NO_SHOW";
+  status: ApiAppointmentStatus;
   client: ApiAuthResponse["user"];
   practitioner: ApiPractitioner;
   service: ApiService;
@@ -159,6 +161,20 @@ export const getAppointment = (id: string) =>
   api<ApiAppointment>(`/appointments/${encodeURIComponent(id)}`, { auth: true });
 
 export const getMyAppointments = () => api<ApiAppointment[]>("/appointments/my", { auth: true });
+
+export const cancelAppointment = (id: string, body?: { cancellationReason?: string }) =>
+  api<ApiAppointment>(`/appointments/${encodeURIComponent(id)}/cancel`, {
+    method: "PATCH",
+    auth: true,
+    body: JSON.stringify(body ?? {}),
+  });
+
+export const updateAppointment = (id: string, body: { startAt: string }) =>
+  api<ApiAppointment>(`/appointments/${encodeURIComponent(id)}`, {
+    method: "PATCH",
+    auth: true,
+    body: JSON.stringify(body),
+  });
 
 export const updateMyProfile = (body: {
   firstName: string;

@@ -2,6 +2,7 @@ import {
     createAppointment as createAppointmentService,
     getClientAppointments,
     cancelAppointment as cancelAppointmentService,
+    updateAppointment as updateAppointmentService,
     getAppointmentById,
     getPractitionerAppointments as getPractitionerAppointmentsService,
     confirmAppointment as confirmAppointmentService,
@@ -135,6 +136,70 @@ export const cancelAppointment = async (req, res) => {
             default:
                 return res.status(500).json({
                     error: "Impossible d'annuler le rendez-vous"
+                });
+        }
+    }
+};
+
+export const updateAppointment = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { startAt } = req.body;
+
+        const appointment = await updateAppointmentService({
+            clientId: req.user.id,
+            appointmentId: id,
+            startAt
+        });
+
+        return res.json(appointment);
+    } catch (error) {
+        console.error(error);
+
+        switch (error.message) {
+            case "START_AT_REQUIRED":
+                return res.status(400).json({
+                    error: "La date et l'heure du rendez-vous sont obligatoires"
+                });
+
+            case "INVALID_START_AT":
+                return res.status(400).json({
+                    error: "La date et l'heure du rendez-vous sont invalides"
+                });
+
+            case "APPOINTMENT_NOT_FOUND":
+                return res.status(404).json({
+                    error: "Rendez-vous introuvable"
+                });
+
+            case "APPOINTMENT_CANNOT_BE_UPDATED":
+                return res.status(400).json({
+                    error: "Ce rendez-vous ne peut pas être déplacé"
+                });
+
+            case "PAST_DATE":
+                return res.status(400).json({
+                    error: "Impossible de déplacer vers une date passée"
+                });
+
+            case "PAST_TIME":
+                return res.status(400).json({
+                    error: "Ce créneau est déjà passé"
+                });
+
+            case "TIME_SLOT_UNAVAILABLE":
+                return res.status(409).json({
+                    error: "Ce créneau n'est pas disponible"
+                });
+
+            case "SERVICE_NOT_FOUND":
+                return res.status(404).json({
+                    error: "Service introuvable ou inactif"
+                });
+
+            default:
+                return res.status(500).json({
+                    error: "Impossible de déplacer le rendez-vous"
                 });
         }
     }

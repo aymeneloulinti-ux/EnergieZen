@@ -26,6 +26,25 @@ const fixtures = {
     practitioner: null
 };
 
+let uniqueDateOffset = 12;
+
+const getNextTestDate = async () => {
+    for (let offset = uniqueDateOffset; offset <= uniqueDateOffset + 30; offset += 1) {
+        const date = getLocalDate(offset);
+        const response = await request(
+            `/availability/slots?practitionerId=${fixtures.practitioner.id}&serviceId=${fixtures.service.id}&date=${date}`
+        );
+
+        if (response.status === 200 && response.data.some((slot) => slot.state === "available")) {
+            uniqueDateOffset = offset + 1;
+            return date;
+        }
+    }
+
+    uniqueDateOffset += 1;
+    return getLocalDate(uniqueDateOffset);
+};
+
 
 // ============================================================
 // HTTP HELPER
@@ -83,14 +102,14 @@ const getLocalDate = (offset) => {
 };
 
 const findNextAvailableSlot = async () => {
-    for (let offset = 1; offset <= 30; offset++) {
+    for (let offset = 10; offset <= 90; offset++) {
         const date = getLocalDate(offset);
         const response = await request(
             `/availability/slots?practitionerId=${fixtures.practitioner.id}&serviceId=${fixtures.service.id}&date=${date}`
         );
 
-        if (response.status === 200 && response.data.length > 0) {
-            return response.data[0];
+        if (response.status === 200 && response.data.some((slot) => slot.state === "available")) {
+            return response.data.find((slot) => slot.state === "available");
         }
     }
 
@@ -681,6 +700,231 @@ test("APPOINTMENTS - Création avec date passée → rejetée", async () => {
         assert.equal(cancellation.status, 200);
         assert.equal(cancellation.data?.status, "CANCELLED");
     });
+
+
+test("APPOINTMENTS - Annulation rejetée si rendez-vous déjà annulé", async () => {
+    const slot = await findNextAvailableSlot();
+    assert.ok(slot, "Aucun créneau disponible pour le test");
+
+    const creation = await request(
+        "/appointments",
+        {
+            method: "POST",
+            token: tokens.client,
+            body: {
+                practitionerId: fixtures.practitioner.id,
+                serviceId: fixtures.service.id,
+                startAt: slot.startAt
+            }
+        }
+    );
+
+    assert.equal(creation.status, 201);
+
+    const cancelFirst = await request(
+        `/appointments/${creation.data.id}/cancel`,
+        {
+            method: "PATCH",
+            token: tokens.client,
+            body: { cancellationReason: "Test annulation" }
+        }
+    );
+
+    assert.equal(cancelFirst.status, 200);
+
+    const cancelAgain = await request(
+        `/appointments/${creation.data.id}/cancel`,
+        {
+            method: "PATCH",
+            token: tokens.client,
+            body: { cancellationReason: "Test double annulation" }
+        }
+    );
+
+    assert.equal(cancelAgain.status, 400);
+    assert.equal(cancelAgain.data?.error, "Ce rendez-vous ne peut pas être annulé");
+});
+
+
+test("APPOINTMENTS - Client ne peut pas déplacer un rendez-vous d'un autre client", async () => {
+    const freshUser = {
+        email: `other-${Date.now()}@energiezen.be`,
+        password: "NouveauMotDePasse123!",
+        firstName: "Autre",
+        lastName: "Client",
+        phone: "+32470000000"
+    };
+
+    const register = await request(
+        "/auth/register",
+        {
+            method: "POST",
+            body: freshUser
+        }
+    );
+
+    assert.equal(register.status, 201);
+    const otherToken = register.data.token;
+
+    const slot = await findNextAvailableSlot();
+    assert.ok(slot, "Aucun créneau disponible pour le test");
+
+    const creation = await request(
+        "/appointments",
+        {
+            method: "POST",
+            token: otherToken,
+            body: {
+                practitionerId: fixtures.practitioner.id,
+                serviceId: fixtures.service.id,
+                startAt: slot.startAt
+            }
+        }
+    );
+
+    assert.equal(creation.status, 201);
+
+    const moved = await request(
+        `/appointments/${creation.data.id}`,
+        {
+            method: "PATCH",
+            token: tokens.client,
+            body: {
+                startAt: slot.startAt
+            }
+        }
+    );
+
+    assert.equal(moved.status, 404);
+});
+
+
+test("APPOINTMENTS - Déplacement d'un rendez-vous vers un créneau libre", async () => {
+    const slot = await findNextAvailableSlot();
+    assert.ok(slot, "Aucun créneau disponible pour le test");
+
+    const creation = await request(
+        "/appointments",
+        {
+            method: "POST",
+            token: tokens.client,
+            body: {
+                practitionerId: fixtures.practitioner.id,
+                serviceId: fixtures.service.id,
+                startAt: slot.startAt
+            }
+        }
+    );
+
+    assert.equal(creation.status, 201);
+    const appointmentId = creation.data.id;
+
+    const nextDate = await getNextTestDate();
+    const availability = await request(
+        `/availability/slots?practitionerId=${fixtures.practitioner.id}&serviceId=${fixtures.service.id}&date=${nextDate}`
+    );
+
+    assert.equal(availability.status, 200);
+    const availableSlot = availability.data.find((entry) => entry.state === "available");
+    assert.ok(availableSlot, "Aucun créneau disponible pour le déplacement");
+
+    const moved = await request(
+        `/appointments/${appointmentId}`,
+        {
+            method: "PATCH",
+            token: tokens.client,
+            body: {
+                startAt: availableSlot.startAt
+            }
+        }
+    );
+
+    assert.equal(moved.status, 200);
+    assert.equal(moved.data?.id, appointmentId);
+    assert.equal(moved.data?.startAt, availableSlot.startAt);
+
+    const list = await request(
+        "/appointments/my",
+        {
+            token: tokens.client
+        }
+    );
+
+    assert.equal(list.status, 200);
+    const updated = list.data.find((appointment) => appointment.id === appointmentId);
+    assert.ok(updated);
+    assert.equal(updated.startAt, availableSlot.startAt);
+});
+
+
+test("APPOINTMENTS - Déplacement vers un créneau déjà réservé est refusé", async () => {
+    const slot = await findNextAvailableSlot();
+    assert.ok(slot, "Aucun créneau disponible pour le test");
+
+    const creation = await request(
+        "/appointments",
+        {
+            method: "POST",
+            token: tokens.client,
+            body: {
+                practitionerId: fixtures.practitioner.id,
+                serviceId: fixtures.service.id,
+                startAt: slot.startAt
+            }
+        }
+    );
+
+    assert.equal(creation.status, 201);
+
+    const otherClient = {
+        email: `busy-${Date.now()}@energiezen.be`,
+        password: "NouveauMotDePasse123!",
+        firstName: "Autre",
+        lastName: "Rdv",
+        phone: "+32470000001"
+    };
+
+    const otherRegister = await request(
+        "/auth/register",
+        {
+            method: "POST",
+            body: otherClient
+        }
+    );
+
+    assert.equal(otherRegister.status, 201);
+
+    const otherSlot = await findNextAvailableSlot();
+    assert.ok(otherSlot, "Aucun créneau disponible pour le test");
+
+    const taken = await request(
+        "/appointments",
+        {
+            method: "POST",
+            token: otherRegister.data.token,
+            body: {
+                practitionerId: fixtures.practitioner.id,
+                serviceId: fixtures.service.id,
+                startAt: otherSlot.startAt
+            }
+        }
+    );
+
+    assert.equal(taken.status, 201);
+
+    const moved = await request(
+        `/appointments/${creation.data.id}`,
+        {
+            method: "PATCH",
+            token: tokens.client,
+            body: {
+                startAt: otherSlot.startAt
+            }
+        }
+    );
+
+    assert.equal(moved.status, 409);
+});
 
 
 // ============================================================

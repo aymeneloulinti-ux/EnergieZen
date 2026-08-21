@@ -4,6 +4,7 @@ import {
     createAppointment,
     getMyAppointments,
     cancelAppointment,
+    updateAppointment,
     getAppointment,
     getPractitionerAppointments,
     confirmAppointment,
@@ -68,18 +69,25 @@ router.patch(
     markAppointmentAsNoShow
 );
 
-// Récupérer un rendez-vous
-router.get(
-    "/:id",
-    requireRole("CLIENT"),
-    getAppointment
-);
-
 // Annuler un rendez-vous
 router.patch(
     "/:id/cancel",
     requireRole("CLIENT"),
     cancelAppointment
+);
+
+// Mettre à jour un rendez-vous client (déplacement)
+router.patch(
+    "/:id",
+    requireRole("CLIENT"),
+    updateAppointment
+);
+
+// Récupérer un rendez-vous
+router.get(
+    "/:id",
+    requireRole("CLIENT"),
+    getAppointment
 );
 
 export default router;

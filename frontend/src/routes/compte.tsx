@@ -1,14 +1,17 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { CalendarDays, Clock, MapPin, Pencil, User, X } from "lucide-react";
 import { SiteShell } from "@/components/site/SiteShell";
 import { cn } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Calendar } from "@/components/ui/calendar";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { studio, formatPrice } from "@/data/site";
-import { getMyAppointments, updateMyProfile, type ApiAppointment } from "@/lib/api";
+import { ApiError, cancelAppointment, getMyAppointments, updateAppointment, updateMyProfile, type ApiAppointment, type ApiAvailabilitySlot } from "@/lib/api";
 import { useAuth } from "@/hooks/useAuth";
 import { getAccountStats } from "@/hooks/useAccountStats";
+import { useAvailability } from "@/hooks/useAvailability";
 
 export const Route = createFileRoute("/compte")({
   head: () => ({
@@ -35,6 +38,29 @@ function Compte() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [tab, setTab] = useState<(typeof tabs)[number]>("Tableau de bord");
+  const [cancelingId, setCancelingId] = useState<string | null>(null);
+  const [moveAppointment, setMoveAppointment] = useState<ApiAppointment | null>(null);
+  const [moveDate, setMoveDate] = useState<Date | undefined>(undefined);
+  const [moveSlot, setMoveSlot] = useState<ApiAvailabilitySlot | null>(null);
+  const [moveError, setMoveError] = useState<string | null>(null);
+  const [moveSubmitting, setMoveSubmitting] = useState(false);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
+
+  const refreshAppointments = async () => {
+    if (!isAuthenticated) return;
+
+    setLoading(true);
+    setError(null);
+
+    try {
+      const data = await getMyAppointments();
+      setAppointments(data);
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : "Impossible de récupérer vos rendez-vous");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
     if (!authLoading && !isAuthenticated) {
@@ -44,11 +70,87 @@ function Compte() {
 
   useEffect(() => {
     if (!isAuthenticated) return;
-    getMyAppointments()
-      .then(setAppointments)
-      .catch((reason: unknown) => setError(reason instanceof Error ? reason.message : "Impossible de récupérer vos rendez-vous"))
-      .finally(() => setLoading(false));
+    void refreshAppointments();
   }, [isAuthenticated]);
+
+  const moveDateValue = useMemo(
+    () => (moveDate ? new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Brussels" }).format(moveDate) : ""),
+    [moveDate],
+  );
+
+  const { slots: moveSlots, loading: moveSlotsLoading, error: moveSlotsError } = useAvailability({
+    practitionerId: moveAppointment?.practitioner.id ?? "",
+    serviceId: moveAppointment?.service.id ?? "",
+    date: moveDateValue,
+  });
+
+  useEffect(() => {
+    if (!moveAppointment) {
+      setMoveDate(undefined);
+      setMoveSlot(null);
+      setMoveError(null);
+      return;
+    }
+
+    setMoveDate(new Date(moveAppointment.startAt));
+    setMoveSlot(null);
+    setMoveError(null);
+  }, [moveAppointment]);
+
+  useEffect(() => {
+    setMoveSlot(null);
+  }, [moveDateValue]);
+
+  const openMoveDialog = (appointment: ApiAppointment) => {
+    setMoveAppointment(appointment);
+    setMoveError(null);
+  };
+
+  const closeMoveDialog = () => {
+    setMoveAppointment(null);
+    setMoveDate(undefined);
+    setMoveSlot(null);
+    setMoveError(null);
+    setMoveSubmitting(false);
+  };
+
+  const handleCancelAppointment = async (appointmentId: string) => {
+    if (cancelingId) return;
+    if (!window.confirm("Voulez-vous vraiment annuler ce rendez-vous ?")) return;
+
+    setCancelingId(appointmentId);
+    setSuccessMessage(null);
+
+    try {
+      await cancelAppointment(appointmentId, { cancellationReason: "Annulé depuis l'espace client" });
+      setSuccessMessage("Votre rendez-vous a bien été annulé.");
+      await refreshAppointments();
+    } catch (reason) {
+      const message = reason instanceof ApiError ? reason.message : "Impossible d'annuler ce rendez-vous";
+      setError(message);
+    } finally {
+      setCancelingId(null);
+    }
+  };
+
+  const handleMoveAppointment = async () => {
+    if (!moveAppointment || !moveSlot || moveSubmitting) return;
+
+    setMoveSubmitting(true);
+    setMoveError(null);
+    setSuccessMessage(null);
+
+    try {
+      await updateAppointment(moveAppointment.id, { startAt: moveSlot.startAt });
+      setSuccessMessage("Votre rendez-vous a bien été déplacé.");
+      closeMoveDialog();
+      await refreshAppointments();
+    } catch (reason) {
+      setMoveError(reason instanceof Error ? reason.message : "Impossible de déplacer ce rendez-vous");
+    } finally {
+      setMoveSubmitting(false);
+    }
+  };
 
   if (authLoading || !isAuthenticated || !user) return null;
 
@@ -96,6 +198,7 @@ function Compte() {
           <div className="mt-8 space-y-6">
             {loading && <p className="text-muted-foreground">Chargement de vos rendez-vous…</p>}
             {error && <p className="text-destructive">{error}</p>}
+            {successMessage && <p className="text-sm text-emerald-700">{successMessage}</p>}
             {!loading && !error && !next && <p className="text-muted-foreground">Aucun rendez-vous à venir.</p>}
             {next && (
             <article className="bg-warm overflow-hidden rounded-[2rem] border border-border/70 p-7 shadow-soft sm:p-9">
@@ -118,11 +221,11 @@ function Compte() {
                 <MapPin className="h-4 w-4" /> {studio.address}
               </p>
               <div className="mt-7 flex flex-col gap-3 sm:flex-row">
-                <button className="inline-flex items-center justify-center gap-2 rounded-full bg-primary px-6 py-3 text-sm text-primary-foreground">
+                <button type="button" onClick={() => openMoveDialog(next)} className="inline-flex items-center justify-center gap-2 rounded-full bg-primary px-6 py-3 text-sm text-primary-foreground">
                   <Pencil className="h-4 w-4" /> Déplacer le rendez-vous
                 </button>
-                <button className="inline-flex items-center justify-center gap-2 rounded-full border border-border bg-card px-6 py-3 text-sm hover:bg-accent">
-                  <X className="h-4 w-4" /> Annuler
+                <button type="button" disabled={cancelingId === next.id} onClick={() => void handleCancelAppointment(next.id)} className="inline-flex items-center justify-center gap-2 rounded-full border border-border bg-card px-6 py-3 text-sm hover:bg-accent disabled:cursor-not-allowed disabled:opacity-60">
+                  <X className="h-4 w-4" /> {cancelingId === next.id ? "Annulation…" : "Annuler"}
                 </button>
               </div>
             </article>
@@ -164,8 +267,15 @@ function Compte() {
 
         {tab === "Mes rendez-vous" && (
           <div className="mt-8 space-y-4">
+            {upcoming.length === 0 && <p className="text-muted-foreground">Aucun rendez-vous à venir.</p>}
             {upcoming.map((a) => (
-              <AppointmentRow key={a.id} appointment={a} />
+              <AppointmentRow
+                key={a.id}
+                appointment={a}
+                canceling={cancelingId === a.id}
+                onCancel={() => void handleCancelAppointment(a.id)}
+                onMove={() => openMoveDialog(a)}
+              />
             ))}
             <Link
               to="/reservation"
@@ -183,6 +293,87 @@ function Compte() {
             ))}
           </div>
         )}
+
+        <Dialog open={!!moveAppointment} onOpenChange={(open) => { if (!open) closeMoveDialog(); }}>
+          <DialogContent className="max-w-3xl">
+            <DialogHeader>
+              <DialogTitle>Déplacer un rendez-vous</DialogTitle>
+              <DialogDescription>
+                Choisissez une nouvelle date et un créneau disponible pour {moveAppointment?.service.name ?? "ce rendez-vous"}.
+              </DialogDescription>
+            </DialogHeader>
+
+            {moveAppointment && (
+              <div className="space-y-6 pt-2">
+                <div className="flex justify-center rounded-2xl border border-border/70 p-2">
+                  <Calendar
+                    mode="single"
+                    selected={moveDate}
+                    onSelect={(nextDate) => {
+                      setMoveDate(nextDate ?? undefined);
+                      setMoveSlot(null);
+                    }}
+                    weekStartsOn={1}
+                    disabled={(d) => {
+                      const today = new Date();
+                      today.setHours(0, 0, 0, 0);
+                      return d < today || d.getDay() === 0 || d.getDay() === 1;
+                    }}
+                    className="pointer-events-auto p-3"
+                  />
+                </div>
+
+                {moveDate && (
+                  <div>
+                    <p className="mb-3 text-sm font-medium">Créneaux pour le {moveDate.toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long" })}</p>
+                    {moveSlotsLoading && <p className="text-muted-foreground">Chargement des créneaux…</p>}
+                    {moveSlotsError && <p className="text-destructive">{moveSlotsError}</p>}
+                    {!moveSlotsLoading && !moveSlotsError && (
+                      <div className="grid grid-cols-3 gap-2.5 sm:grid-cols-4">
+                        {moveSlots.map((slot) => (
+                          <button
+                            key={`${slot.startAt}-${slot.time}`}
+                            type="button"
+                            disabled={slot.state !== "available"}
+                            onClick={() => setMoveSlot(slot)}
+                            className={cn(
+                              "rounded-full border py-3 text-sm transition-all",
+                              moveSlot?.time === slot.time && slot.state === "available" && "border-sage bg-sage text-primary-foreground",
+                              slot.state === "available" && moveSlot?.time !== slot.time && "border-border hover:border-sage hover:bg-accent",
+                              slot.state === "booked" && "cursor-not-allowed border-dashed border-border bg-secondary/50 text-muted-foreground line-through",
+                              slot.state === "unavailable" && "cursor-not-allowed border-border/50 bg-muted/60 text-muted-foreground/60",
+                            )}
+                          >
+                            {slot.time}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                    {!moveSlotsLoading && !moveSlotsError && moveSlots.length === 0 && (
+                      <p className="text-muted-foreground">Aucun créneau disponible pour cette date.</p>
+                    )}
+                  </div>
+                )}
+
+                {moveError && <p className="text-destructive">{moveError}</p>}
+              </div>
+            )}
+
+            <DialogFooter className="mt-2 gap-3 sm:justify-end">
+              <button type="button" onClick={closeMoveDialog} className="rounded-full border border-border bg-card px-4 py-2 text-sm hover:bg-accent">
+                Annuler
+              </button>
+              <button
+                type="button"
+                onClick={() => void handleMoveAppointment()}
+                disabled={!moveSlot || moveSubmitting}
+                className="rounded-full bg-primary px-4 py-2 text-sm text-primary-foreground disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {moveSubmitting ? "Déplacement…" : "Confirmer le déplacement"}
+              </button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
 
         {tab === "Mon profil" && (
           <div className="mt-8 rounded-[2rem] border border-border/70 bg-card p-7 shadow-soft sm:p-9">
@@ -218,7 +409,19 @@ function Compte() {
   );
 }
 
-function AppointmentRow({ appointment: a }: { appointment: ApiAppointment }) {
+function AppointmentRow({
+  appointment: a,
+  canceling,
+  onCancel,
+  onMove,
+}: {
+  appointment: ApiAppointment;
+  canceling?: boolean;
+  onCancel?: () => void;
+  onMove?: () => void;
+}) {
+  const canModify = a.status === "PENDING" || a.status === "CONFIRMED";
+
   return (
     <article className="grid gap-4 rounded-3xl border border-border/70 bg-card p-6 shadow-soft sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
       <div className="min-w-0">
@@ -227,11 +430,21 @@ function AppointmentRow({ appointment: a }: { appointment: ApiAppointment }) {
           {new Date(a.startAt).toLocaleDateString("fr-FR")} · {new Date(a.startAt).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })} · {a.practitioner.user.firstName} {a.practitioner.user.lastName}
         </p>
       </div>
-      <div className="flex items-center gap-3">
+      <div className="flex flex-wrap items-center gap-3">
         <span className="rounded-full bg-secondary px-3 py-1.5 text-xs capitalize text-muted-foreground">
           {a.status}
         </span>
         <span className="font-serif text-lg">{formatPrice(Number(a.service.price))}</span>
+        {canModify && (
+          <>
+            <button type="button" onClick={onMove} className="rounded-full border border-border bg-card px-3 py-2 text-xs hover:bg-accent">
+              Déplacer
+            </button>
+            <button type="button" disabled={canceling} onClick={onCancel} className="rounded-full border border-border bg-card px-3 py-2 text-xs hover:bg-accent disabled:cursor-not-allowed disabled:opacity-60">
+              {canceling ? "Annulation…" : "Annuler"}
+            </button>
+          </>
+        )}
       </div>
     </article>
   );
