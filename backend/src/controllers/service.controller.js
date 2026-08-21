@@ -4,7 +4,8 @@ import {
     getServiceBySlug as getServiceBySlugService,
     createService as createServiceService,
     updateService as updateServiceService,
-    updateServiceStatus as updateServiceStatusService
+    updateServiceStatus as updateServiceStatusService,
+    deleteService as deleteServiceService
 } from "../services/service.service.js";
 
 
@@ -136,16 +137,22 @@ export const createService = async (req, res) => {
             price
         } = req.body;
 
+        const normalizedDuration = duration === undefined || duration === null ? undefined : Number(duration);
+        const normalizedPrice = price === undefined || price === null ? undefined : Number(price);
+        const normalizedImageUrl = req.file
+            ? `/uploads/services/${req.file.filename}`
+            : imageUrl || null;
+
         const service = await createServiceService({
             name,
             slug,
             description,
-            imageUrl,
+            imageUrl: normalizedImageUrl,
             benefits,
             steps,
             faq,
-            duration,
-            price
+            duration: normalizedDuration,
+            price: normalizedPrice
         });
 
         return res.status(201).json(service);
@@ -250,6 +257,31 @@ export const updateService = async (req, res) => {
                 return res.status(500).json({
                     error: "Impossible de modifier le service"
                 });
+        }
+    }
+};
+
+
+// ============================================================
+// DELETE
+// ============================================================
+
+export const deleteService = async (req, res) => {
+    try {
+        await deleteServiceService(req.params.id);
+        return res.status(204).send();
+    } catch (error) {
+        console.error(error);
+
+        switch (error.message) {
+            case "SERVICE_NOT_FOUND":
+                return res.status(404).json({ error: "Service introuvable" });
+            case "SERVICE_HAS_APPOINTMENTS":
+                return res.status(409).json({
+                    error: "Cette prestation ne peut pas être supprimée car elle possède des rendez-vous"
+                });
+            default:
+                return res.status(500).json({ error: "Impossible de supprimer le service" });
         }
     }
 };

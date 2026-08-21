@@ -3,7 +3,8 @@ import { CreditCard, Lock, Mail, ArrowLeft } from "lucide-react";
 import { SiteShell } from "@/components/site/SiteShell";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { getService, practitioners, formatPrice, studio } from "@/data/site";
+import { getService, practitioners, formatPrice } from "@/data/site";
+import { useStudioSettings } from "@/hooks/useStudioSettings";
 
 type Search = {
   service?: string | undefined;
@@ -30,7 +31,10 @@ export const Route = createFileRoute("/paiement")({
       { title: "Paiement sécurisé — Maison Lumen" },
       { name: "description", content: "Réglez votre séance en ligne en toute sécurité." },
       { property: "og:title", content: "Paiement sécurisé — Maison Lumen" },
-      { property: "og:description", content: "Dernière étape avant la confirmation de votre rendez-vous." },
+      {
+        property: "og:description",
+        content: "Dernière étape avant la confirmation de votre rendez-vous.",
+      },
       { name: "robots", content: "noindex" },
     ],
   }),
@@ -39,10 +43,10 @@ export const Route = createFileRoute("/paiement")({
 
 function Paiement() {
   const navigate = useNavigate();
+  const studio = useStudioSettings();
   const s = Route.useSearch();
   const service = getService(s.service ?? "soin-energetique");
-  const practitioner =
-    practitioners.find((p) => p.id === s.practitioner) ?? practitioners[0]!;
+  const practitioner = practitioners.find((p) => p.id === s.practitioner) ?? practitioners[0]!;
   const dateLabel = s.date
     ? new Date(s.date + "T00:00:00").toLocaleDateString("fr-FR", {
         weekday: "long",

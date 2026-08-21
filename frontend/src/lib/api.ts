@@ -30,18 +30,17 @@ export class ApiError extends Error {
   }
 }
 
-export async function api<T>(
-  endpoint: string,
-  options: ApiOptions = {},
-): Promise<T> {
-  const { auth = false, headers, ...fetchOptions } = options;
+export async function api<T>(endpoint: string, options: ApiOptions = {}): Promise<T> {
+  const { auth = false, headers, body, ...fetchOptions } = options;
 
   const token = typeof window === "undefined" ? null : localStorage.getItem("token");
+  const isFormData = typeof FormData !== "undefined" && body instanceof FormData;
 
   const response = await fetch(`${API_URL}${endpoint}`, {
     ...fetchOptions,
+    body,
     headers: {
-      "Content-Type": "application/json",
+      ...(isFormData ? {} : { "Content-Type": "application/json" }),
       ...(auth && token
         ? {
             Authorization: `Bearer ${token}`,
@@ -83,33 +82,56 @@ export type Service = Omit<ApiService, "price" | "steps"> & {
   steps: { title: string; text: string }[];
 };
 
-export const getServices = (auth = false) =>
-  api<ApiService[]>("/services", { auth });
+export const getServices = (auth = false) => api<ApiService[]>("/services", { auth });
 
-export const createService = (body: {
-  name: string;
-  slug: string;
-  description?: string;
-  imageUrl?: string;
-  benefits?: string[];
-  steps?: string[];
-  faq?: { q: string; a: string }[];
-  duration: number;
-  price: number;
-}) => api<ApiService>("/services", { method: "POST", auth: true, body: JSON.stringify(body) });
+export const createService = (
+  body:
+    | FormData
+    | {
+        name: string;
+        slug: string;
+        description?: string;
+        imageUrl?: string;
+        benefits?: string[];
+        steps?: string[];
+        faq?: { q: string; a: string }[];
+        duration: number;
+        price: number;
+      },
+) => {
+  const isFormData = body instanceof FormData;
+
+  return api<ApiService>("/services", {
+    method: "POST",
+    auth: true,
+    headers: isFormData ? undefined : { "Content-Type": "application/json" },
+    body: isFormData ? body : JSON.stringify(body),
+  });
+};
 
 export const updateService = (
   id: string,
   body: Partial<Omit<ApiService, "id" | "active" | "createdAt" | "updatedAt" | "price">> & {
     price?: number;
   },
-) => api<ApiService>(`/services/${encodeURIComponent(id)}`, { method: "PATCH", auth: true, body: JSON.stringify(body) });
+) =>
+  api<ApiService>(`/services/${encodeURIComponent(id)}`, {
+    method: "PATCH",
+    auth: true,
+    body: JSON.stringify(body),
+  });
 
 export const updateServiceStatus = (id: string, active: boolean) =>
   api<ApiService>(`/services/${encodeURIComponent(id)}/status`, {
     method: "PATCH",
     auth: true,
     body: JSON.stringify({ active }),
+  });
+
+export const deleteService = (id: string) =>
+  api<void>(`/services/${encodeURIComponent(id)}`, {
+    method: "DELETE",
+    auth: true,
   });
 
 export type ApiAdminDashboardStats = {
@@ -151,15 +173,33 @@ export const getAdminAppointments = (params?: {
   practitionerId?: string;
   from?: string;
   to?: string;
+  includeCancelled?: boolean;
 }) => {
   const search = new URLSearchParams();
   if (params?.status) search.set("status", params.status);
   if (params?.practitionerId) search.set("practitionerId", params.practitionerId);
   if (params?.from) search.set("from", params.from);
   if (params?.to) search.set("to", params.to);
+  if (params?.includeCancelled !== undefined)
+    search.set("includeCancelled", String(params.includeCancelled));
   const query = search.toString();
-  return api<ApiAdminAppointment[]>(`/admin/appointments${query ? `?${query}` : ""}`, { auth: true });
+  return api<ApiAdminAppointment[]>(`/admin/appointments${query ? `?${query}` : ""}`, {
+    auth: true,
+  });
 };
+
+export const moveAdminAppointment = (id: string, body: { startAt: string }) =>
+  api<ApiAdminAppointment>(`/admin/appointments/${encodeURIComponent(id)}/move`, {
+    method: "PATCH",
+    auth: true,
+    body: JSON.stringify(body),
+  });
+
+export const deleteAdminAppointment = (id: string) =>
+  api<void>(`/admin/appointments/${encodeURIComponent(id)}`, {
+    method: "DELETE",
+    auth: true,
+  });
 
 export const updateAdminAppointmentStatus = (
   id: string,
@@ -247,8 +287,7 @@ export type ApiPractitioner = {
   services: ApiService[];
 };
 
-export const getPractitioners = () =>
-  api<ApiPractitioner[]>("/practitioners");
+export const getPractitioners = () => api<ApiPractitioner[]>("/practitioners");
 
 export type ApiAvailabilitySlot = {
   startAt: string;
@@ -312,11 +351,8 @@ export const updateAppointment = (id: string, body: { startAt: string }) =>
     body: JSON.stringify(body),
   });
 
-export const updateMyProfile = (body: {
-  firstName: string;
-  lastName: string;
-  phone: string;
-}) => api<ApiUser>("/users/me", { method: "PATCH", auth: true, body: JSON.stringify(body) });
+export const updateMyProfile = (body: { firstName: string; lastName: string; phone: string }) =>
+  api<ApiUser>("/users/me", { method: "PATCH", auth: true, body: JSON.stringify(body) });
 
 /**
  * Handle API authentication errors globally

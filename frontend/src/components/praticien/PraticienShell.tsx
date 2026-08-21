@@ -8,7 +8,7 @@ import {
   Clock4,
   ArrowUpRight,
 } from "lucide-react";
-import { studio } from "@/data/site";
+import { useStudioSettings } from "@/hooks/useStudioSettings";
 
 const nav = [
   { to: "/praticien", label: "Dashboard", icon: LayoutDashboard, exact: true },
@@ -29,6 +29,7 @@ export function PraticienShell({
   action?: ReactNode;
   children: ReactNode;
 }) {
+  const studio = useStudioSettings();
   return (
     <div className="min-h-screen bg-background md:flex">
       <aside className="border-b border-sidebar-border bg-sidebar md:sticky md:top-0 md:h-screen md:w-64 md:shrink-0 md:border-b-0 md:border-r">

@@ -240,6 +240,32 @@ export const updateService = async ({
     });
 };
 
+export const deleteService = async (serviceId) => {
+    const service = await prisma.service.findUnique({
+        where: { id: serviceId },
+        select: {
+            id: true,
+            _count: {
+                select: {
+                    appointments: true
+                }
+            }
+        }
+    });
+
+    if (!service) {
+        throw new Error("SERVICE_NOT_FOUND");
+    }
+
+    if (service._count.appointments > 0) {
+        throw new Error("SERVICE_HAS_APPOINTMENTS");
+    }
+
+    await prisma.service.delete({
+        where: { id: serviceId }
+    });
+};
+
 
 // ============================================================
 // UPDATE STATUS

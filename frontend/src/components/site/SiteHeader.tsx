@@ -1,8 +1,8 @@
 import { Link } from "@tanstack/react-router";
 import { useState } from "react";
 import { Menu, X } from "lucide-react";
-import { studio } from "@/data/site";
 import { useAuth } from "@/hooks/useAuth";
+import { useStudioSettings } from "@/hooks/useStudioSettings";
 
 const nav = [
   { to: "/", label: "Accueil" },
@@ -12,11 +12,22 @@ const nav = [
 
 export function SiteHeader() {
   const [open, setOpen] = useState(false);
+  const studio = useStudioSettings();
   const { isAuthenticated, isAdmin, isPractitioner, isClient } = useAuth();
 
   // Determine the account space link based on role
-  const accountLink = isAdmin ? "/admin" : isPractitioner ? "/praticien" : isClient ? "/compte" : undefined;
-  const accountLabel = isAdmin ? "Administration" : isPractitioner ? "Espace praticien" : "Mon espace";
+  const accountLink = isAdmin
+    ? "/admin"
+    : isPractitioner
+      ? "/praticien"
+      : isClient
+        ? "/compte"
+        : undefined;
+  const accountLabel = isAdmin
+    ? "Administration"
+    : isPractitioner
+      ? "Espace praticien"
+      : "Mon espace";
 
   return (
     <header className="sticky top-0 z-40 border-b border-border/60 bg-background/85 backdrop-blur-md">
@@ -45,13 +56,20 @@ export function SiteHeader() {
               {n.label}
             </Link>
           ))}
-          {accountLink && (
+          {accountLink ? (
             <Link
               to={accountLink}
               className="text-sm text-muted-foreground transition-colors hover:text-foreground"
               activeProps={{ className: "text-sm text-foreground" }}
             >
               {accountLabel}
+            </Link>
+          ) : (
+            <Link
+              to="/connexion"
+              className="rounded-full border border-border bg-background px-4 py-2 text-sm text-foreground transition-colors hover:bg-accent"
+            >
+              Connexion
             </Link>
           )}
           <Link
@@ -84,13 +102,21 @@ export function SiteHeader() {
               {n.label}
             </Link>
           ))}
-          {accountLink && (
+          {accountLink ? (
             <Link
               to={accountLink}
               onClick={() => setOpen(false)}
               className="block border-b border-border/50 py-3 text-sm text-foreground"
             >
               {accountLabel}
+            </Link>
+          ) : (
+            <Link
+              to="/connexion"
+              onClick={() => setOpen(false)}
+              className="mt-3 block rounded-full border border-border bg-background px-4 py-3 text-center text-sm text-foreground"
+            >
+              Connexion
             </Link>
           )}
           <Link

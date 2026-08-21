@@ -1,4 +1,7 @@
 import prisma from "../config/prisma.js";
+import { getAvailableSlots } from "./availability.service.js";
+import { APP_TIMEZONE } from "../utils/date.js";
+import { formatInTimeZone } from "date-fns-tz";
 
 const adminAppointmentInclude = {
     client: {
@@ -220,10 +223,15 @@ export const getAdminAppointments = async ({
     status,
     practitionerId,
     from,
-    to
+    to,
+    includeCancelled = true
 } = {}) => {
     const where = {
-        ...(status && { status }),
+        ...(status
+            ? { status }
+            : !includeCancelled
+                ? { status: { not: "CANCELLED" } }
+                : {}),
         ...(practitionerId && { practitionerId }),
         ...((from || to) && {
             startAt: {
@@ -239,6 +247,102 @@ export const getAdminAppointments = async ({
         orderBy: {
             startAt: "asc"
         }
+    });
+};
+
+export const moveAdminAppointment = async ({
+    appointmentId,
+    startAt
+}) => {
+    if (!startAt) {
+        throw new Error("START_AT_REQUIRED");
+    }
+
+    const start = new Date(startAt);
+    if (Number.isNaN(start.getTime())) {
+        throw new Error("INVALID_START_AT");
+    }
+
+    const appointment = await prisma.appointment.findUnique({
+        where: { id: appointmentId },
+        include: { service: true }
+    });
+
+    if (!appointment) {
+        throw new Error("APPOINTMENT_NOT_FOUND");
+    }
+
+    if (!["PENDING", "CONFIRMED"].includes(appointment.status)) {
+        throw new Error("APPOINTMENT_CANNOT_BE_UPDATED");
+    }
+
+    const currentLocalDate = formatInTimeZone(new Date(), APP_TIMEZONE, "yyyy-MM-dd");
+    const currentLocalTime = formatInTimeZone(new Date(), APP_TIMEZONE, "HH:mm");
+    const targetLocalDate = formatInTimeZone(start, APP_TIMEZONE, "yyyy-MM-dd");
+    const targetLocalTime = formatInTimeZone(start, APP_TIMEZONE, "HH:mm");
+
+    if (targetLocalDate < currentLocalDate) {
+        throw new Error("PAST_DATE");
+    }
+
+    if (targetLocalDate === currentLocalDate && targetLocalTime <= currentLocalTime) {
+        throw new Error("PAST_TIME");
+    }
+
+    const end = new Date(start.getTime() + appointment.service.duration * 60 * 1000);
+    const availableSlots = await getAvailableSlots({
+        practitionerId: appointment.practitionerId,
+        serviceId: appointment.serviceId,
+        date: targetLocalDate
+    });
+
+    const matchingSlot = availableSlots.find((slot) =>
+        slot.state === "available" &&
+        slot.startAt.getTime() === start.getTime() &&
+        slot.endAt.getTime() === end.getTime()
+    );
+
+    if (!matchingSlot) {
+        throw new Error("TIME_SLOT_UNAVAILABLE");
+    }
+
+    const overlappingAppointment = await prisma.appointment.findFirst({
+        where: {
+            practitionerId: appointment.practitionerId,
+            status: { not: "CANCELLED" },
+            id: { not: appointmentId },
+            startAt: { lt: end },
+            endAt: { gt: start }
+        }
+    });
+
+    if (overlappingAppointment) {
+        throw new Error("TIME_SLOT_UNAVAILABLE");
+    }
+
+    return prisma.appointment.update({
+        where: { id: appointmentId },
+        data: { startAt: start, endAt: end },
+        include: adminAppointmentInclude
+    });
+};
+
+export const deleteAdminAppointment = async (appointmentId) => {
+    const appointment = await prisma.appointment.findUnique({
+        where: { id: appointmentId },
+        select: { id: true, status: true }
+    });
+
+    if (!appointment) {
+        throw new Error("APPOINTMENT_NOT_FOUND");
+    }
+
+    if (appointment.status !== "CANCELLED") {
+        throw new Error("APPOINTMENT_NOT_CANCELLED");
+    }
+
+    await prisma.appointment.delete({
+        where: { id: appointmentId }
     });
 };
 

@@ -6,11 +6,13 @@ import {
     getServiceBySlug,
     createService,
     updateService,
-    updateServiceStatus
+    updateServiceStatus,
+    deleteService
 } from "../controllers/service.controller.js";
 
 import { authenticate } from "../middlewares/auth.middleware.js";
 import { requireRole } from "../middlewares/role.middleware.js";
+import { uploadServiceImage } from "../utils/upload.js";
 
 const router = Router();
 
@@ -47,6 +49,7 @@ router.post(
     "/",
     authenticate,
     requireRole("ADMIN"),
+    uploadServiceImage.single("image"),
     createService
 );
 
@@ -56,6 +59,13 @@ router.patch(
     authenticate,
     requireRole("ADMIN"),
     updateService
+);
+
+router.delete(
+    "/:id",
+    authenticate,
+    requireRole("ADMIN"),
+    deleteService
 );
 
 // Activer / désactiver un service

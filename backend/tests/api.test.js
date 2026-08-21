@@ -430,6 +430,35 @@ test("SERVICES - Durée invalide refusée", async () => {
 });
 
 
+test("SERVICES - Admin peut créer un service avec image", async () => {
+
+    const form = new FormData();
+    form.append("name", "Service avec image");
+    form.append("slug", `service-image-${Date.now()}`);
+    form.append("description", "Description avec image");
+    form.append("duration", "45");
+    form.append("price", "29.5");
+    form.append("image", new Blob(["fake-image-content"], { type: "image/png" }), "service.png");
+
+    const response = await fetch(
+        `${BASE_URL}/services`,
+        {
+            method: "POST",
+            headers: {
+                Authorization: `Bearer ${tokens.admin}`
+            },
+            body: form
+        }
+    );
+
+    const data = await response.json();
+
+    assert.equal(response.status, 201);
+    assert.equal(typeof data.imageUrl, "string");
+    assert.match(data.imageUrl, /^\/uploads\/services\//);
+});
+
+
 // ============================================================
 // PRACTITIONERS
 // ============================================================
@@ -1084,6 +1113,112 @@ test("ADMIN - Filtre des rendez-vous par statut", async () => {
     assert.equal(response.status, 200);
     assert.ok(Array.isArray(response.data));
     assert.ok(response.data.every((appointment) => appointment.status === "PENDING"));
+});
+
+test("ADMIN - Le filtre exclut les rendez-vous annulés par défaut", async () => {
+
+    const listResponse = await request(
+        "/admin/appointments",
+        {
+            token: tokens.admin
+        }
+    );
+
+    assert.equal(listResponse.status, 200);
+    assert.ok(Array.isArray(listResponse.data));
+
+    const appointment = listResponse.data.find((item) => item.status !== "CANCELLED");
+
+    if (!appointment) {
+        assert.ok(true);
+        return;
+    }
+
+    const cancelResponse = await request(
+        `/admin/appointments/${appointment.id}/status`,
+        {
+            method: "PATCH",
+            token: tokens.admin,
+            body: {
+                status: "CANCELLED"
+            }
+        }
+    );
+
+    assert.equal(cancelResponse.status, 200);
+
+    const hiddenResponse = await request(
+        "/admin/appointments?includeCancelled=false",
+        {
+            token: tokens.admin
+        }
+    );
+
+    assert.equal(hiddenResponse.status, 200);
+    assert.ok(hiddenResponse.data.every((item) => item.status !== "CANCELLED"));
+
+    const visibleResponse = await request(
+        "/admin/appointments?includeCancelled=true",
+        {
+            token: tokens.admin
+        }
+    );
+
+    assert.equal(visibleResponse.status, 200);
+    assert.ok(visibleResponse.data.some((item) => item.status === "CANCELLED"));
+});
+
+test("ADMIN - Déplacement d'un rendez-vous depuis la liste admin", async () => {
+
+    const listResponse = await request(
+        "/admin/appointments",
+        {
+            token: tokens.admin
+        }
+    );
+
+    assert.equal(listResponse.status, 200);
+    assert.ok(Array.isArray(listResponse.data));
+
+    const appointment = listResponse.data.find((item) => item.status !== "CANCELLED" && item.status !== "COMPLETED" && item.status !== "NO_SHOW");
+
+    if (!appointment) {
+        assert.ok(true);
+        return;
+    }
+
+    let nextStart = null;
+
+    for (let offset = 20; offset <= 90 && !nextStart; offset += 1) {
+        const date = getLocalDate(offset);
+        const availabilityResponse = await request(
+            `/availability/slots?practitionerId=${appointment.practitioner.id}&serviceId=${appointment.service.id}&date=${date}`,
+            {
+                token: tokens.admin
+            }
+        );
+        const availableSlot = availabilityResponse.data?.find((slot) => slot.state === "available");
+        if (availableSlot) nextStart = availableSlot.startAt;
+    }
+
+    if (!nextStart) {
+        assert.ok(true);
+        return;
+    }
+
+    const response = await request(
+        `/admin/appointments/${appointment.id}/move`,
+        {
+            method: "PATCH",
+            token: tokens.admin,
+            body: {
+                startAt: nextStart
+            }
+        }
+    );
+
+    assert.equal(response.status, 200);
+    assert.equal(new Date(response.data.startAt).toISOString(), new Date(nextStart).toISOString());
 });
 
 test("ADMIN - Client interdit de la liste globale des rendez-vous", async () => {

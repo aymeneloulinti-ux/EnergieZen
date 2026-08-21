@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { Link } from "@tanstack/react-router";
+import { Link, useNavigate } from "@tanstack/react-router";
 import {
   LayoutDashboard,
   CalendarDays,
@@ -11,8 +11,10 @@ import {
   CreditCard,
   Settings,
   ArrowUpRight,
+  LogOut,
 } from "lucide-react";
-import { studio } from "@/data/site";
+import { useAuth } from "@/hooks/useAuth";
+import { useStudioSettings } from "@/hooks/useStudioSettings";
 
 const nav = [
   { to: "/admin", label: "Dashboard", icon: LayoutDashboard, exact: true },
@@ -37,6 +39,10 @@ export function AdminShell({
   action?: ReactNode;
   children: ReactNode;
 }) {
+  const navigate = useNavigate();
+  const { logout } = useAuth();
+  const studio = useStudioSettings();
+
   return (
     <div className="min-h-screen bg-background md:flex">
       <aside className="border-b border-sidebar-border bg-sidebar md:sticky md:top-0 md:h-screen md:w-64 md:shrink-0 md:border-b-0 md:border-r">
@@ -48,7 +54,7 @@ export function AdminShell({
             <span>
               <span className="block font-serif text-base leading-none">{studio.name}</span>
               <span className="mt-1 block text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
-                Espace praticienne
+                Espace administrateur
               </span>
             </span>
           </Link>
@@ -70,13 +76,24 @@ export function AdminShell({
             </Link>
           ))}
         </nav>
-        <div className="hidden px-5 pb-6 md:block">
+        <div className="hidden space-y-3 px-5 pb-6 md:block">
           <Link
             to="/"
             className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground"
           >
             Voir le site public <ArrowUpRight className="h-3 w-3" />
           </Link>
+          <button
+            type="button"
+            onClick={() => {
+              logout();
+              void navigate({ to: "/" });
+            }}
+            className="inline-flex w-full items-center justify-start gap-2 rounded-xl border border-border bg-background px-3 py-2 text-xs text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+          >
+            <LogOut className="h-3.5 w-3.5" />
+            Déconnexion
+          </button>
         </div>
       </aside>
 
@@ -94,15 +111,7 @@ export function AdminShell({
   );
 }
 
-export function StatCard({
-  label,
-  value,
-  hint,
-}: {
-  label: string;
-  value: string;
-  hint?: string;
-}) {
+export function StatCard({ label, value, hint }: { label: string; value: string; hint?: string }) {
   return (
     <div className="rounded-2xl border border-border/70 bg-card p-5 shadow-soft">
       <p className="text-xs uppercase tracking-[0.14em] text-muted-foreground">{label}</p>

@@ -1,8 +1,9 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { ArrowRight, Clock, Quote } from "lucide-react";
 import { SiteShell } from "@/components/site/SiteShell";
-import { steps, testimonials, images, studio, formatPrice } from "@/data/site";
+import { steps, testimonials, images, formatPrice } from "@/data/site";
 import { useServices } from "@/hooks/useServices";
+import { useStudioSettings } from "@/hooks/useStudioSettings";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -24,6 +25,7 @@ export const Route = createFileRoute("/")({
 });
 
 function Index() {
+  const studio = useStudioSettings();
   const { services, loading, error } = useServices();
 
   return (
@@ -32,14 +34,11 @@ function Index() {
       <section className="mx-auto max-w-6xl px-5 pb-8 pt-10 sm:pt-16">
         <div className="grid items-center gap-10 lg:grid-cols-[1.02fr_1fr]">
           <div className="fade-up">
-            <p className="text-xs uppercase tracking-[0.22em] text-sage">
-              Ixelles · Bruxelles
-            </p>
+            <p className="text-xs uppercase tracking-[0.22em] text-sage">Ixelles · Bruxelles</p>
             <h1 className="mt-5 text-[2.6rem] leading-[1.05] sm:text-6xl">
               Retrouver votre
               <br />
-              équilibre,{" "}
-              <em className="not-italic text-sage">naturellement.</em>
+              équilibre, <em className="not-italic text-sage">naturellement.</em>
             </h1>
             <p className="mt-6 max-w-lg text-[1.02rem] leading-relaxed text-muted-foreground">
               Je suis Camille, praticienne en soins énergétiques depuis douze ans. Ici, pas de
@@ -127,37 +126,37 @@ function Index() {
           {!loading &&
             !error &&
             services.map((s) => (
-            <Link
-              key={s.slug}
-              to="/soins/$slug"
-              params={{ slug: s.slug }}
-              className="group overflow-hidden rounded-3xl border border-border/70 bg-card shadow-soft transition-all hover:-translate-y-1 hover:shadow-lift"
-            >
-              {s.imageUrl ? (
-                <img
-                  src={s.imageUrl}
-                  alt={s.name}
-                  loading="lazy"
-                  width={1200}
-                  height={912}
-                  className="h-44 w-full object-cover transition-transform duration-700 group-hover:scale-[1.04]"
-                />
-              ) : (
-                <div aria-hidden="true" className="h-44 bg-secondary" />
-              )}
-              <div className="p-5">
-                <h3 className="text-xl">{s.name}</h3>
-                <p className="mt-2 line-clamp-3 text-sm leading-relaxed text-muted-foreground">
-                  {s.description}
-                </p>
-                <div className="mt-4 flex items-center justify-between border-t border-border/70 pt-4 text-sm">
-                  <span className="flex items-center gap-1.5 text-muted-foreground">
-                    <Clock className="h-3.5 w-3.5" /> {s.duration} min
-                  </span>
-                  <span className="font-serif text-lg">{formatPrice(s.price)}</span>
+              <Link
+                key={s.slug}
+                to="/soins/$slug"
+                params={{ slug: s.slug }}
+                className="group overflow-hidden rounded-3xl border border-border/70 bg-card shadow-soft transition-all hover:-translate-y-1 hover:shadow-lift"
+              >
+                {s.imageUrl ? (
+                  <img
+                    src={s.imageUrl}
+                    alt={s.name}
+                    loading="lazy"
+                    width={1200}
+                    height={912}
+                    className="h-44 w-full object-cover transition-transform duration-700 group-hover:scale-[1.04]"
+                  />
+                ) : (
+                  <div aria-hidden="true" className="h-44 bg-secondary" />
+                )}
+                <div className="p-5">
+                  <h3 className="text-xl">{s.name}</h3>
+                  <p className="mt-2 line-clamp-3 text-sm leading-relaxed text-muted-foreground">
+                    {s.description}
+                  </p>
+                  <div className="mt-4 flex items-center justify-between border-t border-border/70 pt-4 text-sm">
+                    <span className="flex items-center gap-1.5 text-muted-foreground">
+                      <Clock className="h-3.5 w-3.5" /> {s.duration} min
+                    </span>
+                    <span className="font-serif text-lg">{formatPrice(s.price)}</span>
+                  </div>
                 </div>
-              </div>
-            </Link>
+              </Link>
             ))}
         </div>
       </section>

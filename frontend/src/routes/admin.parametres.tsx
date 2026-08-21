@@ -4,13 +4,17 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
-import { studio } from "@/data/site";
+import { getStudioSettings, saveStudioSettings, type StudioSettings } from "@/data/site";
+import { useEffect, useState } from "react";
 
 export const Route = createFileRoute("/admin/parametres")({
   head: () => ({
     meta: [
       { title: "Paramètres — Maison Lumen" },
-      { name: "description", content: "Coordonnées du cabinet, règles de réservation et notifications." },
+      {
+        name: "description",
+        content: "Coordonnées du cabinet, règles de réservation et notifications.",
+      },
       { property: "og:title", content: "Paramètres — Maison Lumen" },
       { property: "og:description", content: "Configuration du cabinet." },
       { name: "robots", content: "noindex" },
@@ -20,6 +24,23 @@ export const Route = createFileRoute("/admin/parametres")({
 });
 
 function Parametres() {
+  const [form, setForm] = useState<StudioSettings>(getStudioSettings);
+  const [saved, setSaved] = useState(false);
+
+  useEffect(() => {
+    setForm(getStudioSettings());
+  }, []);
+
+  const updateField = (field: keyof StudioSettings, value: string) => {
+    setForm((current) => ({ ...current, [field]: value }));
+    setSaved(false);
+  };
+
+  const save = () => {
+    saveStudioSettings(form);
+    setSaved(true);
+  };
+
   return (
     <AdminShell title="Paramètres" subtitle="Informations du cabinet et règles de réservation">
       <div className="grid gap-6 xl:grid-cols-2">
@@ -28,20 +49,41 @@ function Parametres() {
           <div className="mt-5 space-y-5">
             <div>
               <Label htmlFor="s-name">Nom</Label>
-              <Input id="s-name" className="mt-2 rounded-xl" defaultValue={studio.name} />
+              <Input
+                id="s-name"
+                className="mt-2 rounded-xl"
+                value={form.name}
+                onChange={(event) => updateField("name", event.target.value)}
+              />
             </div>
             <div>
               <Label htmlFor="s-addr">Adresse</Label>
-              <Input id="s-addr" className="mt-2 rounded-xl" defaultValue={studio.address} />
+              <Input
+                id="s-addr"
+                className="mt-2 rounded-xl"
+                value={form.address}
+                onChange={(event) => updateField("address", event.target.value)}
+              />
             </div>
             <div className="grid gap-4 sm:grid-cols-2">
               <div>
                 <Label htmlFor="s-phone">Téléphone</Label>
-                <Input id="s-phone" className="mt-2 rounded-xl" defaultValue={studio.phone} />
+                <Input
+                  id="s-phone"
+                  className="mt-2 rounded-xl"
+                  value={form.phone}
+                  onChange={(event) => updateField("phone", event.target.value)}
+                />
               </div>
               <div>
                 <Label htmlFor="s-mail">E-mail</Label>
-                <Input id="s-mail" className="mt-2 rounded-xl" defaultValue={studio.email} />
+                <Input
+                  id="s-mail"
+                  type="email"
+                  className="mt-2 rounded-xl"
+                  value={form.email}
+                  onChange={(event) => updateField("email", event.target.value)}
+                />
               </div>
             </div>
             <div>
@@ -53,9 +95,18 @@ function Parametres() {
                 defaultValue="Merci pour votre réservation. Présentez-vous cinq minutes avant l'heure, la porte bleue au fond de la cour."
               />
             </div>
-            <button className="rounded-full bg-primary px-6 py-3 text-sm text-primary-foreground">
+            <button
+              type="button"
+              onClick={save}
+              className="rounded-full bg-primary px-6 py-3 text-sm text-primary-foreground"
+            >
               Enregistrer
             </button>
+            {saved && (
+              <p className="text-sm text-emerald-700">
+                Les informations du cabinet ont été enregistrées.
+              </p>
+            )}
           </div>
         </section>
 

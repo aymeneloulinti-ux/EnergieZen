@@ -1,8 +1,9 @@
 import { Link } from "@tanstack/react-router";
 import { Instagram, Facebook, Mail, Phone, MapPin } from "lucide-react";
-import { studio, services } from "@/data/site";
-
+import { services } from "@/data/site";
+import { useStudioSettings } from "@/hooks/useStudioSettings";
 export function SiteFooter() {
+  const studio = useStudioSettings();
   return (
     <footer className="mt-24 border-t border-border/60 bg-secondary/50">
       <div className="mx-auto grid max-w-6xl gap-10 px-5 py-14 sm:grid-cols-2 lg:grid-cols-4">
@@ -81,18 +82,27 @@ export function SiteFooter() {
             to="/admin"
             className="mt-5 inline-block text-xs text-muted-foreground underline underline-offset-4"
           >
-            Espace praticienne
+            Mon Espace
           </Link>
         </div>
       </div>
 
       <div className="border-t border-border/60">
         <div className="mx-auto flex max-w-6xl flex-col gap-3 px-5 py-6 text-xs text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
-          <p>© 2026 {studio.name}. Les soins proposés relèvent du bien-être et ne remplacent pas un avis médical.</p>
+          <p>
+            © 2026 {studio.name}. Les soins proposés relèvent du bien-être et ne remplacent pas un
+            avis médical.
+          </p>
           <div className="flex gap-5">
-            <a href="#" className="hover:text-foreground">Mentions légales</a>
-            <a href="#" className="hover:text-foreground">Confidentialité</a>
-            <a href="#" className="hover:text-foreground">CGV</a>
+            <a href="#" className="hover:text-foreground">
+              Mentions légales
+            </a>
+            <a href="#" className="hover:text-foreground">
+              Confidentialité
+            </a>
+            <a href="#" className="hover:text-foreground">
+              CGV
+            </a>
           </div>
         </div>
       </div>

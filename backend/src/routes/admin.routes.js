@@ -5,7 +5,9 @@ import {
     getAdminClients,
     getAdminPractitioners,
     getAdminAppointments,
-    updateAdminAppointmentStatus
+    updateAdminAppointmentStatus,
+    moveAdminAppointment,
+    deleteAdminAppointment
 } from "../controllers/admin.controller.js";
 
 import { authenticate } from "../middlewares/auth.middleware.js";
@@ -39,6 +41,16 @@ router.get(
 router.patch(
     "/appointments/:id/status",
     updateAdminAppointmentStatus
+);
+
+router.patch(
+    "/appointments/:id/move",
+    moveAdminAppointment
+);
+
+router.delete(
+    "/appointments/:id",
+    deleteAdminAppointment
 );
 
 export default router;

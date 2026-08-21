@@ -2,8 +2,9 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { CalendarPlus, Check, Home, MapPin, Mail } from "lucide-react";
 import { SiteShell } from "@/components/site/SiteShell";
-import { getService, practitioners, studio } from "@/data/site";
+import { getService, practitioners } from "@/data/site";
 import { getAppointment, type ApiAppointment } from "@/lib/api";
+import { useStudioSettings } from "@/hooks/useStudioSettings";
 
 type Search = {
   service?: string | undefined;
@@ -36,6 +37,7 @@ export const Route = createFileRoute("/confirmation")({
 });
 
 function Confirmation() {
+  const studio = useStudioSettings();
   const s = Route.useSearch();
   const [appointment, setAppointment] = useState<ApiAppointment | null>(null);
   const [appointmentLoading, setAppointmentLoading] = useState(!!s.appointmentId);
@@ -48,7 +50,9 @@ function Confirmation() {
     getAppointment(s.appointmentId)
       .then(setAppointment)
       .catch((reason: unknown) =>
-        setAppointmentError(reason instanceof Error ? reason.message : "Impossible de récupérer le rendez-vous"),
+        setAppointmentError(
+          reason instanceof Error ? reason.message : "Impossible de récupérer le rendez-vous",
+        ),
       )
       .finally(() => setAppointmentLoading(false));
   }, [s.appointmentId]);
@@ -78,7 +82,7 @@ function Confirmation() {
     ? {
         name: `${appointment.practitioner.user.firstName} ${appointment.practitioner.user.lastName}`,
       }
-    : practitioners.find((p) => p.id === s.practitioner) ?? practitioners[0]!;
+    : (practitioners.find((p) => p.id === s.practitioner) ?? practitioners[0]!);
   const appointmentDate = appointment ? new Date(appointment.startAt) : null;
   const dateLabel = appointmentDate
     ? appointmentDate.toLocaleDateString("fr-FR", {
@@ -89,13 +93,13 @@ function Confirmation() {
         year: "numeric",
       })
     : s.date
-    ? new Date(s.date + "T00:00:00").toLocaleDateString("fr-FR", {
-        weekday: "long",
-        day: "numeric",
-        month: "long",
-        year: "numeric",
-      })
-    : "jeudi 20 août 2026";
+      ? new Date(s.date + "T00:00:00").toLocaleDateString("fr-FR", {
+          weekday: "long",
+          day: "numeric",
+          month: "long",
+          year: "numeric",
+        })
+      : "jeudi 20 août 2026";
 
   const appointmentTime = appointmentDate
     ? appointmentDate.toLocaleTimeString("fr-FR", {
@@ -103,7 +107,7 @@ function Confirmation() {
         hour: "2-digit",
         minute: "2-digit",
       })
-    : s.time ?? "10:30";
+    : (s.time ?? "10:30");
 
   return (
     <SiteShell>
@@ -111,12 +115,10 @@ function Confirmation() {
         <div className="mx-auto grid h-16 w-16 place-items-center rounded-full bg-sage-soft">
           <Check className="h-7 w-7 text-sage" />
         </div>
-        <h1 className="mt-8 text-4xl leading-tight sm:text-5xl">
-          Votre rendez-vous est confirmé.
-        </h1>
+        <h1 className="mt-8 text-4xl leading-tight sm:text-5xl">Votre rendez-vous est confirmé.</h1>
         <p className="mt-5 text-muted-foreground">
-          Un e-mail de confirmation vient de vous être envoyé. Vous y trouverez l'adresse du
-          cabinet et quelques conseils pour bien préparer votre venue.
+          Un e-mail de confirmation vient de vous être envoyé. Vous y trouverez l'adresse du cabinet
+          et quelques conseils pour bien préparer votre venue.
         </p>
 
         <div className="mt-10 rounded-[2rem] border border-border/70 bg-card p-7 text-left shadow-soft sm:p-9">

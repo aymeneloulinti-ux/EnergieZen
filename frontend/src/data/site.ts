@@ -2,12 +2,38 @@ import heroImg from "@/assets/hero-practitioner.jpg";
 
 export const images = { heroImg };
 
-export const studio = {
+export type StudioSettings = {
+  name: string;
+  tagline: string;
+  address: string;
+  phone: string;
+  email: string;
+};
+
+export const studio: StudioSettings = {
   name: "Maison Lumen",
   tagline: "Cabinet de soins énergétiques",
   address: "Rue du Page 42, 1050 Ixelles, Bruxelles",
   phone: "+32 478 21 44 09",
   email: "bonjour@maisonlumen.be",
+};
+
+const studioStorageKey = "energiezen-studio-settings";
+
+export const getStudioSettings = (): StudioSettings => {
+  if (typeof window === "undefined") return studio;
+
+  try {
+    const stored = window.localStorage.getItem(studioStorageKey);
+    return stored ? { ...studio, ...JSON.parse(stored) } : studio;
+  } catch {
+    return studio;
+  }
+};
+
+export const saveStudioSettings = (settings: StudioSettings) => {
+  window.localStorage.setItem(studioStorageKey, JSON.stringify(settings));
+  window.dispatchEvent(new Event("studio-settings-changed"));
 };
 
 export type Service = {
@@ -40,14 +66,32 @@ export const services: Service[] = [
       "Prendre un temps pour soi, sans attente de performance",
     ],
     expect: [
-      { title: "Accueil", text: "Dix minutes d'échange pour comprendre où vous en êtes aujourd'hui." },
-      { title: "Le soin", text: "Quarante minutes allongé·e, habillé·e, dans le silence ou avec une musique douce." },
-      { title: "Retour au calme", text: "Un temps de parole libre, une tisane, et quelques repères pour les jours suivants." },
+      {
+        title: "Accueil",
+        text: "Dix minutes d'échange pour comprendre où vous en êtes aujourd'hui.",
+      },
+      {
+        title: "Le soin",
+        text: "Quarante minutes allongé·e, habillé·e, dans le silence ou avec une musique douce.",
+      },
+      {
+        title: "Retour au calme",
+        text: "Un temps de parole libre, une tisane, et quelques repères pour les jours suivants.",
+      },
     ],
     faq: [
-      { q: "Dois-je me déshabiller ?", a: "Non. Le soin se déroule entièrement habillé·e, allongé·e sur une table confortable." },
-      { q: "Est-ce un acte médical ?", a: "Non. Il s'agit d'une pratique de bien-être et de relaxation, qui ne remplace en aucun cas un suivi médical." },
-      { q: "Combien de séances faut-il ?", a: "Une seule séance suffit souvent à faire une pause. Certaines personnes reviennent une fois par mois, à leur rythme." },
+      {
+        q: "Dois-je me déshabiller ?",
+        a: "Non. Le soin se déroule entièrement habillé·e, allongé·e sur une table confortable.",
+      },
+      {
+        q: "Est-ce un acte médical ?",
+        a: "Non. Il s'agit d'une pratique de bien-être et de relaxation, qui ne remplace en aucun cas un suivi médical.",
+      },
+      {
+        q: "Combien de séances faut-il ?",
+        a: "Une seule séance suffit souvent à faire une pause. Certaines personnes reviennent une fois par mois, à leur rythme.",
+      },
     ],
   },
   {
@@ -66,14 +110,32 @@ export const services: Service[] = [
       "Se sentir soutenu·e sur un temps long",
     ],
     expect: [
-      { title: "Écoute", text: "Vingt minutes pour poser ce qui pèse et définir une intention simple." },
-      { title: "Le soin", text: "Soixante minutes de travail énergétique complet, du bassin jusqu'à la nuque." },
-      { title: "Intégration", text: "Dix minutes pour revenir doucement, avec des pistes concrètes pour la semaine." },
+      {
+        title: "Écoute",
+        text: "Vingt minutes pour poser ce qui pèse et définir une intention simple.",
+      },
+      {
+        title: "Le soin",
+        text: "Soixante minutes de travail énergétique complet, du bassin jusqu'à la nuque.",
+      },
+      {
+        title: "Intégration",
+        text: "Dix minutes pour revenir doucement, avec des pistes concrètes pour la semaine.",
+      },
     ],
     faq: [
-      { q: "Quelle différence avec le soin d'une heure ?", a: "Le temps d'écoute est plus long et le travail couvre l'ensemble du corps, sans précipitation." },
-      { q: "Puis-je venir enceinte ?", a: "Oui, la séance est adaptée. Signalez-le simplement lors de la réservation." },
-      { q: "Faut-il prévoir quelque chose ?", a: "Une tenue confortable, et si possible pas de rendez-vous pressant juste après." },
+      {
+        q: "Quelle différence avec le soin d'une heure ?",
+        a: "Le temps d'écoute est plus long et le travail couvre l'ensemble du corps, sans précipitation.",
+      },
+      {
+        q: "Puis-je venir enceinte ?",
+        a: "Oui, la séance est adaptée. Signalez-le simplement lors de la réservation.",
+      },
+      {
+        q: "Faut-il prévoir quelque chose ?",
+        a: "Une tenue confortable, et si possible pas de rendez-vous pressant juste après.",
+      },
     ],
   },
   {
@@ -92,13 +154,25 @@ export const services: Service[] = [
     ],
     expect: [
       { title: "Installation", text: "Cinq minutes pour vous installer et déposer votre journée." },
-      { title: "Relaxation guidée", text: "Trente-cinq minutes de respiration guidée et de relâchement progressif." },
+      {
+        title: "Relaxation guidée",
+        text: "Trente-cinq minutes de respiration guidée et de relâchement progressif.",
+      },
       { title: "Départ", text: "Cinq minutes pour reprendre pied, à votre rythme." },
     ],
     faq: [
-      { q: "C'est ma première fois, est-ce adapté ?", a: "Oui, c'est la séance que je conseille le plus souvent pour une découverte." },
-      { q: "Puis-je venir sur ma pause déjeuner ?", a: "Bien sûr, des créneaux de 12h à 14h sont ouverts du mardi au vendredi." },
-      { q: "Y a-t-il un vestiaire ?", a: "Oui, un espace calme est prévu pour déposer vos affaires." },
+      {
+        q: "C'est ma première fois, est-ce adapté ?",
+        a: "Oui, c'est la séance que je conseille le plus souvent pour une découverte.",
+      },
+      {
+        q: "Puis-je venir sur ma pause déjeuner ?",
+        a: "Bien sûr, des créneaux de 12h à 14h sont ouverts du mardi au vendredi.",
+      },
+      {
+        q: "Y a-t-il un vestiaire ?",
+        a: "Oui, un espace calme est prévu pour déposer vos affaires.",
+      },
     ],
   },
   {
@@ -116,21 +190,39 @@ export const services: Service[] = [
       "Être accompagné·e entre les séances",
     ],
     expect: [
-      { title: "Séance 1", text: "Bilan de départ et définition d'un cap simple, sans objectif de performance." },
+      {
+        title: "Séance 1",
+        text: "Bilan de départ et définition d'un cap simple, sans objectif de performance.",
+      },
       { title: "Séances 2 et 3", text: "Travail de fond, espacé de trois à quatre semaines." },
       { title: "Séance 4", text: "Bilan, ajustements et autonomie pour la suite." },
     ],
     faq: [
-      { q: "Le cycle est-il à payer en une fois ?", a: "Vous pouvez régler l'ensemble à la réservation ou séance par séance, comme cela vous convient." },
-      { q: "Puis-je décaler une séance ?", a: "Oui, jusqu'à 24 h avant, directement depuis votre espace client." },
-      { q: "Les séances sont-elles toujours identiques ?", a: "Non, chaque séance s'adapte à ce que vous traversez au moment du rendez-vous." },
+      {
+        q: "Le cycle est-il à payer en une fois ?",
+        a: "Vous pouvez régler l'ensemble à la réservation ou séance par séance, comme cela vous convient.",
+      },
+      {
+        q: "Puis-je décaler une séance ?",
+        a: "Oui, jusqu'à 24 h avant, directement depuis votre espace client.",
+      },
+      {
+        q: "Les séances sont-elles toujours identiques ?",
+        a: "Non, chaque séance s'adapte à ce que vous traversez au moment du rendez-vous.",
+      },
     ],
   },
 ];
 
 export const getService = (slug: string) => services.find((s) => s.slug === slug);
 
-export type Practitioner = { id: string; name: string; role: string; initials: string; bio: string };
+export type Practitioner = {
+  id: string;
+  name: string;
+  role: string;
+  initials: string;
+  bio: string;
+};
 
 export const practitioners: Practitioner[] = [
   {
@@ -199,25 +291,177 @@ export type Appointment = {
 };
 
 export const appointments: Appointment[] = [
-  { id: "MLN-4821", client: "Élise Dumont", email: "elise.dumont@gmail.com", phone: "+32 471 22 18 04", serviceSlug: "soin-energetique", practitionerId: "camille", date: "2026-08-12", time: "09:30", status: "confirmé", payment: "payé" },
-  { id: "MLN-4822", client: "Thomas Leroy", email: "t.leroy@outlook.be", phone: "+32 486 55 12 77", serviceSlug: "seance-de-relaxation", practitionerId: "noor", date: "2026-08-12", time: "11:00", status: "confirmé", payment: "payé" },
-  { id: "MLN-4823", client: "Farida Mansouri", email: "farida.m@proton.me", phone: "+32 495 78 30 21", serviceSlug: "reequilibrage-energetique", practitionerId: "camille", date: "2026-08-12", time: "14:00", status: "en attente", payment: "à régler" },
-  { id: "MLN-4824", client: "Julien Pirard", email: "julien.pirard@gmail.com", phone: "+32 472 09 41 66", serviceSlug: "soin-energetique", practitionerId: "camille", date: "2026-08-12", time: "16:30", status: "confirmé", payment: "payé" },
-  { id: "MLN-4825", client: "Sophie Delvaux", email: "sophie.delvaux@skynet.be", phone: "+32 470 33 90 12", serviceSlug: "accompagnement-personnalise", practitionerId: "camille", date: "2026-08-13", time: "10:00", status: "confirmé", payment: "payé" },
-  { id: "MLN-4826", client: "Marc Hendrickx", email: "m.hendrickx@gmail.com", phone: "+32 477 61 25 88", serviceSlug: "seance-de-relaxation", practitionerId: "noor", date: "2026-08-13", time: "12:30", status: "confirmé", payment: "à régler" },
-  { id: "MLN-4827", client: "Anaïs Colin", email: "anais.colin@gmail.com", phone: "+32 493 14 07 52", serviceSlug: "reequilibrage-energetique", practitionerId: "camille", date: "2026-08-14", time: "09:00", status: "confirmé", payment: "payé" },
-  { id: "MLN-4810", client: "Élise Dumont", email: "elise.dumont@gmail.com", phone: "+32 471 22 18 04", serviceSlug: "seance-de-relaxation", practitionerId: "noor", date: "2026-07-15", time: "13:00", status: "terminé", payment: "payé" },
-  { id: "MLN-4794", client: "Élise Dumont", email: "elise.dumont@gmail.com", phone: "+32 471 22 18 04", serviceSlug: "soin-energetique", practitionerId: "camille", date: "2026-06-18", time: "18:00", status: "terminé", payment: "payé" },
-  { id: "MLN-4771", client: "Élise Dumont", email: "elise.dumont@gmail.com", phone: "+32 471 22 18 04", serviceSlug: "soin-energetique", practitionerId: "camille", date: "2026-05-20", time: "17:30", status: "terminé", payment: "payé" },
+  {
+    id: "MLN-4821",
+    client: "Élise Dumont",
+    email: "elise.dumont@gmail.com",
+    phone: "+32 471 22 18 04",
+    serviceSlug: "soin-energetique",
+    practitionerId: "camille",
+    date: "2026-08-12",
+    time: "09:30",
+    status: "confirmé",
+    payment: "payé",
+  },
+  {
+    id: "MLN-4822",
+    client: "Thomas Leroy",
+    email: "t.leroy@outlook.be",
+    phone: "+32 486 55 12 77",
+    serviceSlug: "seance-de-relaxation",
+    practitionerId: "noor",
+    date: "2026-08-12",
+    time: "11:00",
+    status: "confirmé",
+    payment: "payé",
+  },
+  {
+    id: "MLN-4823",
+    client: "Farida Mansouri",
+    email: "farida.m@proton.me",
+    phone: "+32 495 78 30 21",
+    serviceSlug: "reequilibrage-energetique",
+    practitionerId: "camille",
+    date: "2026-08-12",
+    time: "14:00",
+    status: "en attente",
+    payment: "à régler",
+  },
+  {
+    id: "MLN-4824",
+    client: "Julien Pirard",
+    email: "julien.pirard@gmail.com",
+    phone: "+32 472 09 41 66",
+    serviceSlug: "soin-energetique",
+    practitionerId: "camille",
+    date: "2026-08-12",
+    time: "16:30",
+    status: "confirmé",
+    payment: "payé",
+  },
+  {
+    id: "MLN-4825",
+    client: "Sophie Delvaux",
+    email: "sophie.delvaux@skynet.be",
+    phone: "+32 470 33 90 12",
+    serviceSlug: "accompagnement-personnalise",
+    practitionerId: "camille",
+    date: "2026-08-13",
+    time: "10:00",
+    status: "confirmé",
+    payment: "payé",
+  },
+  {
+    id: "MLN-4826",
+    client: "Marc Hendrickx",
+    email: "m.hendrickx@gmail.com",
+    phone: "+32 477 61 25 88",
+    serviceSlug: "seance-de-relaxation",
+    practitionerId: "noor",
+    date: "2026-08-13",
+    time: "12:30",
+    status: "confirmé",
+    payment: "à régler",
+  },
+  {
+    id: "MLN-4827",
+    client: "Anaïs Colin",
+    email: "anais.colin@gmail.com",
+    phone: "+32 493 14 07 52",
+    serviceSlug: "reequilibrage-energetique",
+    practitionerId: "camille",
+    date: "2026-08-14",
+    time: "09:00",
+    status: "confirmé",
+    payment: "payé",
+  },
+  {
+    id: "MLN-4810",
+    client: "Élise Dumont",
+    email: "elise.dumont@gmail.com",
+    phone: "+32 471 22 18 04",
+    serviceSlug: "seance-de-relaxation",
+    practitionerId: "noor",
+    date: "2026-07-15",
+    time: "13:00",
+    status: "terminé",
+    payment: "payé",
+  },
+  {
+    id: "MLN-4794",
+    client: "Élise Dumont",
+    email: "elise.dumont@gmail.com",
+    phone: "+32 471 22 18 04",
+    serviceSlug: "soin-energetique",
+    practitionerId: "camille",
+    date: "2026-06-18",
+    time: "18:00",
+    status: "terminé",
+    payment: "payé",
+  },
+  {
+    id: "MLN-4771",
+    client: "Élise Dumont",
+    email: "elise.dumont@gmail.com",
+    phone: "+32 471 22 18 04",
+    serviceSlug: "soin-energetique",
+    practitionerId: "camille",
+    date: "2026-05-20",
+    time: "17:30",
+    status: "terminé",
+    payment: "payé",
+  },
 ];
 
 export const clients = [
-  { name: "Élise Dumont", email: "elise.dumont@gmail.com", phone: "+32 471 22 18 04", visits: 9, last: "18 juin 2026", spent: 620 },
-  { name: "Thomas Leroy", email: "t.leroy@outlook.be", phone: "+32 486 55 12 77", visits: 5, last: "30 juillet 2026", spent: 285 },
-  { name: "Farida Mansouri", email: "farida.m@proton.me", phone: "+32 495 78 30 21", visits: 3, last: "22 juillet 2026", spent: 240 },
-  { name: "Julien Pirard", email: "julien.pirard@gmail.com", phone: "+32 472 09 41 66", visits: 2, last: "2 août 2026", spent: 150 },
-  { name: "Sophie Delvaux", email: "sophie.delvaux@skynet.be", phone: "+32 470 33 90 12", visits: 12, last: "5 août 2026", spent: 980 },
-  { name: "Marc Hendrickx", email: "m.hendrickx@gmail.com", phone: "+32 477 61 25 88", visits: 1, last: "—", spent: 0 },
+  {
+    name: "Élise Dumont",
+    email: "elise.dumont@gmail.com",
+    phone: "+32 471 22 18 04",
+    visits: 9,
+    last: "18 juin 2026",
+    spent: 620,
+  },
+  {
+    name: "Thomas Leroy",
+    email: "t.leroy@outlook.be",
+    phone: "+32 486 55 12 77",
+    visits: 5,
+    last: "30 juillet 2026",
+    spent: 285,
+  },
+  {
+    name: "Farida Mansouri",
+    email: "farida.m@proton.me",
+    phone: "+32 495 78 30 21",
+    visits: 3,
+    last: "22 juillet 2026",
+    spent: 240,
+  },
+  {
+    name: "Julien Pirard",
+    email: "julien.pirard@gmail.com",
+    phone: "+32 472 09 41 66",
+    visits: 2,
+    last: "2 août 2026",
+    spent: 150,
+  },
+  {
+    name: "Sophie Delvaux",
+    email: "sophie.delvaux@skynet.be",
+    phone: "+32 470 33 90 12",
+    visits: 12,
+    last: "5 août 2026",
+    spent: 980,
+  },
+  {
+    name: "Marc Hendrickx",
+    email: "m.hendrickx@gmail.com",
+    phone: "+32 477 61 25 88",
+    visits: 1,
+    last: "—",
+    spent: 0,
+  },
 ];
 
 export const timeSlots = [

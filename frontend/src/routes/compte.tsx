@@ -6,12 +6,28 @@ import { cn } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Calendar } from "@/components/ui/calendar";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { studio, formatPrice } from "@/data/site";
-import { ApiError, cancelAppointment, getMyAppointments, updateAppointment, updateMyProfile, type ApiAppointment, type ApiAvailabilitySlot } from "@/lib/api";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { formatPrice } from "@/data/site";
+import {
+  ApiError,
+  cancelAppointment,
+  getMyAppointments,
+  updateAppointment,
+  updateMyProfile,
+  type ApiAppointment,
+  type ApiAvailabilitySlot,
+} from "@/lib/api";
 import { useAuth } from "@/hooks/useAuth";
 import { getAccountStats } from "@/hooks/useAccountStats";
 import { useAvailability } from "@/hooks/useAvailability";
+import { useStudioSettings } from "@/hooks/useStudioSettings";
 
 export const Route = createFileRoute("/compte")({
   head: () => ({
@@ -19,10 +35,14 @@ export const Route = createFileRoute("/compte")({
       { title: "Mon espace — Maison Lumen" },
       {
         name: "description",
-        content: "Retrouvez vos rendez-vous, votre historique de séances et vos informations personnelles.",
+        content:
+          "Retrouvez vos rendez-vous, votre historique de séances et vos informations personnelles.",
       },
       { property: "og:title", content: "Mon espace client — Maison Lumen" },
-      { property: "og:description", content: "Vos rendez-vous et votre historique en un coup d'œil." },
+      {
+        property: "og:description",
+        content: "Vos rendez-vous et votre historique en un coup d'œil.",
+      },
       { name: "robots", content: "noindex" },
     ],
   }),
@@ -34,6 +54,7 @@ const tabs = ["Tableau de bord", "Mes rendez-vous", "Historique", "Mon profil"] 
 function Compte() {
   const navigate = useNavigate();
   const { user, loading: authLoading, isAuthenticated, isClient, isAdmin, logout } = useAuth();
+  const studio = useStudioSettings();
   const [appointments, setAppointments] = useState<ApiAppointment[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -56,7 +77,9 @@ function Compte() {
       const data = await getMyAppointments();
       setAppointments(data);
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : "Impossible de récupérer vos rendez-vous");
+      setError(
+        reason instanceof Error ? reason.message : "Impossible de récupérer vos rendez-vous",
+      );
     } finally {
       setLoading(false);
     }
@@ -79,11 +102,18 @@ function Compte() {
   }, [isAuthenticated]);
 
   const moveDateValue = useMemo(
-    () => (moveDate ? new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Brussels" }).format(moveDate) : ""),
+    () =>
+      moveDate
+        ? new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Brussels" }).format(moveDate)
+        : "",
     [moveDate],
   );
 
-  const { slots: moveSlots, loading: moveSlotsLoading, error: moveSlotsError } = useAvailability({
+  const {
+    slots: moveSlots,
+    loading: moveSlotsLoading,
+    error: moveSlotsError,
+  } = useAvailability({
     practitionerId: moveAppointment?.practitioner.id ?? "",
     serviceId: moveAppointment?.service.id ?? "",
     date: moveDateValue,
@@ -127,11 +157,14 @@ function Compte() {
     setSuccessMessage(null);
 
     try {
-      await cancelAppointment(appointmentId, { cancellationReason: "Annulé depuis l'espace client" });
+      await cancelAppointment(appointmentId, {
+        cancellationReason: "Annulé depuis l'espace client",
+      });
       setSuccessMessage("Votre rendez-vous a bien été annulé.");
       await refreshAppointments();
     } catch (reason) {
-      const message = reason instanceof ApiError ? reason.message : "Impossible d'annuler ce rendez-vous";
+      const message =
+        reason instanceof ApiError ? reason.message : "Impossible d'annuler ce rendez-vous";
       setError(message);
     } finally {
       setCancelingId(null);
@@ -151,7 +184,9 @@ function Compte() {
       closeMoveDialog();
       await refreshAppointments();
     } catch (reason) {
-      setMoveError(reason instanceof Error ? reason.message : "Impossible de déplacer ce rendez-vous");
+      setMoveError(
+        reason instanceof Error ? reason.message : "Impossible de déplacer ce rendez-vous",
+      );
     } finally {
       setMoveSubmitting(false);
     }
@@ -159,11 +194,22 @@ function Compte() {
 
   if (authLoading || !isAuthenticated || !user) return null;
 
-  const upcoming = appointments.filter((item) => item.status === "PENDING" || item.status === "CONFIRMED");
-  const past = appointments.filter((item) => item.status !== "PENDING" && item.status !== "CONFIRMED");
+  const upcoming = appointments.filter(
+    (item) => item.status === "PENDING" || item.status === "CONFIRMED",
+  );
+  const past = appointments.filter(
+    (item) => item.status !== "PENDING" && item.status !== "CONFIRMED",
+  );
   const stats = getAccountStats(appointments);
   const next = upcoming[0];
-  const dateLabel = (value: string) => new Date(value).toLocaleDateString("fr-FR", { timeZone: "Europe/Brussels", weekday: "long", day: "numeric", month: "long", year: "numeric" });
+  const dateLabel = (value: string) =>
+    new Date(value).toLocaleDateString("fr-FR", {
+      timeZone: "Europe/Brussels",
+      weekday: "long",
+      day: "numeric",
+      month: "long",
+      year: "numeric",
+    });
 
   return (
     <SiteShell>
@@ -174,9 +220,17 @@ function Compte() {
             <h1 className="mt-3 truncate text-3xl sm:text-4xl">Bonjour {user.firstName}</h1>
           </div>
           <span className="grid h-12 w-12 shrink-0 place-items-center rounded-full bg-sage-soft font-serif">
-            {user.firstName[0]}{user.lastName[0]}
+            {user.firstName[0]}
+            {user.lastName[0]}
           </span>
-          <button type="button" onClick={() => { logout(); void navigate({ to: "/" }); }} className="rounded-full border border-border px-4 py-2 text-sm hover:bg-accent">
+          <button
+            type="button"
+            onClick={() => {
+              logout();
+              void navigate({ to: "/" });
+            }}
+            className="rounded-full border border-border px-4 py-2 text-sm hover:bg-accent"
+          >
             Se déconnecter
           </button>
         </div>
@@ -204,36 +258,54 @@ function Compte() {
             {loading && <p className="text-muted-foreground">Chargement de vos rendez-vous…</p>}
             {error && <p className="text-destructive">{error}</p>}
             {successMessage && <p className="text-sm text-emerald-700">{successMessage}</p>}
-            {!loading && !error && !next && <p className="text-muted-foreground">Aucun rendez-vous à venir.</p>}
+            {!loading && !error && !next && (
+              <p className="text-muted-foreground">Aucun rendez-vous à venir.</p>
+            )}
             {next && (
-            <article className="bg-warm overflow-hidden rounded-[2rem] border border-border/70 p-7 shadow-soft sm:p-9">
-              <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
-                Prochain rendez-vous
-              </p>
-              <h2 className="mt-4 text-3xl sm:text-4xl">{next.service.name}</h2>
-              <div className="mt-6 grid gap-4 sm:grid-cols-3">
-                <p className="flex items-center gap-2.5 text-sm">
-                  <CalendarDays className="h-4 w-4 text-sage" /> {dateLabel(next.startAt)}
+              <article className="bg-warm overflow-hidden rounded-[2rem] border border-border/70 p-7 shadow-soft sm:p-9">
+                <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
+                  Prochain rendez-vous
                 </p>
-                <p className="flex items-center gap-2.5 text-sm">
-                  <Clock className="h-4 w-4 text-sage" /> {new Date(next.startAt).toLocaleTimeString("fr-FR", { timeZone: "Europe/Brussels", hour: "2-digit", minute: "2-digit" })} · {next.service.duration} min
+                <h2 className="mt-4 text-3xl sm:text-4xl">{next.service.name}</h2>
+                <div className="mt-6 grid gap-4 sm:grid-cols-3">
+                  <p className="flex items-center gap-2.5 text-sm">
+                    <CalendarDays className="h-4 w-4 text-sage" /> {dateLabel(next.startAt)}
+                  </p>
+                  <p className="flex items-center gap-2.5 text-sm">
+                    <Clock className="h-4 w-4 text-sage" />{" "}
+                    {new Date(next.startAt).toLocaleTimeString("fr-FR", {
+                      timeZone: "Europe/Brussels",
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    })}{" "}
+                    · {next.service.duration} min
+                  </p>
+                  <p className="flex items-center gap-2.5 text-sm">
+                    <User className="h-4 w-4 text-sage" /> {next.practitioner.user.firstName}{" "}
+                    {next.practitioner.user.lastName}
+                  </p>
+                </div>
+                <p className="mt-4 flex items-center gap-2.5 text-sm text-muted-foreground">
+                  <MapPin className="h-4 w-4" /> {studio.address}
                 </p>
-                <p className="flex items-center gap-2.5 text-sm">
-                  <User className="h-4 w-4 text-sage" /> {next.practitioner.user.firstName} {next.practitioner.user.lastName}
-                </p>
-              </div>
-              <p className="mt-4 flex items-center gap-2.5 text-sm text-muted-foreground">
-                <MapPin className="h-4 w-4" /> {studio.address}
-              </p>
-              <div className="mt-7 flex flex-col gap-3 sm:flex-row">
-                <button type="button" onClick={() => openMoveDialog(next)} className="inline-flex items-center justify-center gap-2 rounded-full bg-primary px-6 py-3 text-sm text-primary-foreground">
-                  <Pencil className="h-4 w-4" /> Déplacer le rendez-vous
-                </button>
-                <button type="button" disabled={cancelingId === next.id} onClick={() => void handleCancelAppointment(next.id)} className="inline-flex items-center justify-center gap-2 rounded-full border border-border bg-card px-6 py-3 text-sm hover:bg-accent disabled:cursor-not-allowed disabled:opacity-60">
-                  <X className="h-4 w-4" /> {cancelingId === next.id ? "Annulation…" : "Annuler"}
-                </button>
-              </div>
-            </article>
+                <div className="mt-7 flex flex-col gap-3 sm:flex-row">
+                  <button
+                    type="button"
+                    onClick={() => openMoveDialog(next)}
+                    className="inline-flex items-center justify-center gap-2 rounded-full bg-primary px-6 py-3 text-sm text-primary-foreground"
+                  >
+                    <Pencil className="h-4 w-4" /> Déplacer le rendez-vous
+                  </button>
+                  <button
+                    type="button"
+                    disabled={cancelingId === next.id}
+                    onClick={() => void handleCancelAppointment(next.id)}
+                    className="inline-flex items-center justify-center gap-2 rounded-full border border-border bg-card px-6 py-3 text-sm hover:bg-accent disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    <X className="h-4 w-4" /> {cancelingId === next.id ? "Annulation…" : "Annuler"}
+                  </button>
+                </div>
+              </article>
             )}
 
             <div className="grid gap-6 sm:grid-cols-3">
@@ -242,7 +314,10 @@ function Compte() {
                 ["Depuis", stats.since ?? "—"],
                 ["Soin préféré", stats.favoriteService ?? "—"],
               ].map(([k, v]) => (
-                <div key={k} className="rounded-3xl border border-border/70 bg-card p-6 shadow-soft">
+                <div
+                  key={k}
+                  className="rounded-3xl border border-border/70 bg-card p-6 shadow-soft"
+                >
                   <p className="text-xs uppercase tracking-[0.14em] text-muted-foreground">{k}</p>
                   <p className="mt-3 font-serif text-2xl">{v}</p>
                 </div>
@@ -256,9 +331,7 @@ function Compte() {
                   <li key={a.id} className="flex items-center justify-between gap-4 py-4">
                     <div className="min-w-0">
                       <p className="truncate text-sm font-medium">{a.service.name}</p>
-                      <p className="mt-1 text-xs text-muted-foreground">
-                        {dateLabel(a.startAt)}
-                      </p>
+                      <p className="mt-1 text-xs text-muted-foreground">{dateLabel(a.startAt)}</p>
                     </div>
                     <span className="shrink-0 text-sm text-muted-foreground">
                       {formatPrice(Number(a.service.price))}
@@ -272,7 +345,9 @@ function Compte() {
 
         {tab === "Mes rendez-vous" && (
           <div className="mt-8 space-y-4">
-            {upcoming.length === 0 && <p className="text-muted-foreground">Aucun rendez-vous à venir.</p>}
+            {upcoming.length === 0 && (
+              <p className="text-muted-foreground">Aucun rendez-vous à venir.</p>
+            )}
             {upcoming.map((a) => (
               <AppointmentRow
                 key={a.id}
@@ -299,12 +374,18 @@ function Compte() {
           </div>
         )}
 
-        <Dialog open={!!moveAppointment} onOpenChange={(open) => { if (!open) closeMoveDialog(); }}>
+        <Dialog
+          open={!!moveAppointment}
+          onOpenChange={(open) => {
+            if (!open) closeMoveDialog();
+          }}
+        >
           <DialogContent className="max-w-3xl">
             <DialogHeader>
               <DialogTitle>Déplacer un rendez-vous</DialogTitle>
               <DialogDescription>
-                Choisissez une nouvelle date et un créneau disponible pour {moveAppointment?.service.name ?? "ce rendez-vous"}.
+                Choisissez une nouvelle date et un créneau disponible pour{" "}
+                {moveAppointment?.service.name ?? "ce rendez-vous"}.
               </DialogDescription>
             </DialogHeader>
 
@@ -330,8 +411,17 @@ function Compte() {
 
                 {moveDate && (
                   <div>
-                    <p className="mb-3 text-sm font-medium">Créneaux pour le {moveDate.toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long" })}</p>
-                    {moveSlotsLoading && <p className="text-muted-foreground">Chargement des créneaux…</p>}
+                    <p className="mb-3 text-sm font-medium">
+                      Créneaux pour le{" "}
+                      {moveDate.toLocaleDateString("fr-FR", {
+                        weekday: "long",
+                        day: "numeric",
+                        month: "long",
+                      })}
+                    </p>
+                    {moveSlotsLoading && (
+                      <p className="text-muted-foreground">Chargement des créneaux…</p>
+                    )}
                     {moveSlotsError && <p className="text-destructive">{moveSlotsError}</p>}
                     {!moveSlotsLoading && !moveSlotsError && (
                       <div className="grid grid-cols-3 gap-2.5 sm:grid-cols-4">
@@ -343,10 +433,16 @@ function Compte() {
                             onClick={() => setMoveSlot(slot)}
                             className={cn(
                               "rounded-full border py-3 text-sm transition-all",
-                              moveSlot?.time === slot.time && slot.state === "available" && "border-sage bg-sage text-primary-foreground",
-                              slot.state === "available" && moveSlot?.time !== slot.time && "border-border hover:border-sage hover:bg-accent",
-                              slot.state === "booked" && "cursor-not-allowed border-dashed border-border bg-secondary/50 text-muted-foreground line-through",
-                              slot.state === "unavailable" && "cursor-not-allowed border-border/50 bg-muted/60 text-muted-foreground/60",
+                              moveSlot?.time === slot.time &&
+                                slot.state === "available" &&
+                                "border-sage bg-sage text-primary-foreground",
+                              slot.state === "available" &&
+                                moveSlot?.time !== slot.time &&
+                                "border-border hover:border-sage hover:bg-accent",
+                              slot.state === "booked" &&
+                                "cursor-not-allowed border-dashed border-border bg-secondary/50 text-muted-foreground line-through",
+                              slot.state === "unavailable" &&
+                                "cursor-not-allowed border-border/50 bg-muted/60 text-muted-foreground/60",
                             )}
                           >
                             {slot.time}
@@ -355,7 +451,9 @@ function Compte() {
                       </div>
                     )}
                     {!moveSlotsLoading && !moveSlotsError && moveSlots.length === 0 && (
-                      <p className="text-muted-foreground">Aucun créneau disponible pour cette date.</p>
+                      <p className="text-muted-foreground">
+                        Aucun créneau disponible pour cette date.
+                      </p>
                     )}
                   </div>
                 )}
@@ -365,7 +463,11 @@ function Compte() {
             )}
 
             <DialogFooter className="mt-2 gap-3 sm:justify-end">
-              <button type="button" onClick={closeMoveDialog} className="rounded-full border border-border bg-card px-4 py-2 text-sm hover:bg-accent">
+              <button
+                type="button"
+                onClick={closeMoveDialog}
+                className="rounded-full border border-border bg-card px-4 py-2 text-sm hover:bg-accent"
+              >
                 Annuler
               </button>
               <button
@@ -401,10 +503,27 @@ function Compte() {
                 <Input id="p-phone" className="mt-2 rounded-xl" defaultValue={user.phone ?? ""} />
               </div>
             </div>
-            <button type="button" onClick={() => void updateMyProfile({ firstName: user.firstName, lastName: user.lastName, phone: user.phone ?? "" })} className="mt-7 rounded-full bg-primary px-6 py-3 text-sm text-primary-foreground">
+            <button
+              type="button"
+              onClick={() =>
+                void updateMyProfile({
+                  firstName: user.firstName,
+                  lastName: user.lastName,
+                  phone: user.phone ?? "",
+                })
+              }
+              className="mt-7 rounded-full bg-primary px-6 py-3 text-sm text-primary-foreground"
+            >
               Enregistrer
             </button>
-            <button type="button" onClick={() => { logout(); void navigate({ to: "/" }); }} className="mt-4 rounded-full border border-border px-6 py-3 text-sm">
+            <button
+              type="button"
+              onClick={() => {
+                logout();
+                void navigate({ to: "/" });
+              }}
+              className="mt-4 rounded-full border border-border px-6 py-3 text-sm"
+            >
               Se déconnecter
             </button>
           </div>
@@ -432,7 +551,9 @@ function AppointmentRow({
       <div className="min-w-0">
         <p className="font-serif text-xl">{a.service.name}</p>
         <p className="mt-2 text-sm text-muted-foreground">
-          {new Date(a.startAt).toLocaleDateString("fr-FR")} · {new Date(a.startAt).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })} · {a.practitioner.user.firstName} {a.practitioner.user.lastName}
+          {new Date(a.startAt).toLocaleDateString("fr-FR")} ·{" "}
+          {new Date(a.startAt).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}{" "}
+          · {a.practitioner.user.firstName} {a.practitioner.user.lastName}
         </p>
       </div>
       <div className="flex flex-wrap items-center gap-3">
@@ -442,10 +563,19 @@ function AppointmentRow({
         <span className="font-serif text-lg">{formatPrice(Number(a.service.price))}</span>
         {canModify && (
           <>
-            <button type="button" onClick={onMove} className="rounded-full border border-border bg-card px-3 py-2 text-xs hover:bg-accent">
+            <button
+              type="button"
+              onClick={onMove}
+              className="rounded-full border border-border bg-card px-3 py-2 text-xs hover:bg-accent"
+            >
               Déplacer
             </button>
-            <button type="button" disabled={canceling} onClick={onCancel} className="rounded-full border border-border bg-card px-3 py-2 text-xs hover:bg-accent disabled:cursor-not-allowed disabled:opacity-60">
+            <button
+              type="button"
+              disabled={canceling}
+              onClick={onCancel}
+              className="rounded-full border border-border bg-card px-3 py-2 text-xs hover:bg-accent disabled:cursor-not-allowed disabled:opacity-60"
+            >
               {canceling ? "Annulation…" : "Annuler"}
             </button>
           </>
