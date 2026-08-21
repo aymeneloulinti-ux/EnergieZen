@@ -3,7 +3,8 @@ import {
     getExceptions,
     createException,
     updateException,
-    deleteException
+    deleteException,
+    getExceptionsByPractitionerId
 } from "../services/availability.service.js";
 
 
@@ -256,5 +257,44 @@ export const deleteAvailabilityException = async (req, res) => {
         res.status(500).json({
             error: "Impossible de supprimer l'exception"
         });
+    }
+};
+
+export const getAdminAvailabilityExceptions = async (req, res) => {
+    try {
+        res.json(await getExceptionsByPractitionerId(req.params.practitionerId));
+    } catch (error) {
+        console.error(error);
+        res.status(error.message === "PRACTITIONER_NOT_FOUND" ? 404 : 500).json({ error: "Impossible de récupérer les congés" });
+    }
+};
+
+export const createAdminAvailabilityException = async (req, res) => {
+    try {
+        const exception = await createException({ practitionerId: req.params.practitionerId, ...req.body });
+        res.status(201).json(exception);
+    } catch (error) {
+        console.error(error);
+        const badRequest = ["DATE_REQUIRED", "INVALID_EXCEPTION_TYPE", "TIME_REQUIRED", "INVALID_TIME_FORMAT", "INVALID_TIME_RANGE", "CLOSED_CANNOT_HAVE_HOURS", "EXCEPTION_ALREADY_EXISTS"].includes(error.message);
+        res.status(error.message === "PRACTITIONER_NOT_FOUND" ? 404 : badRequest ? 400 : 500).json({ error: error.message });
+    }
+};
+
+export const updateAdminAvailabilityException = async (req, res) => {
+    try {
+        res.json(await updateException({ practitionerId: req.params.practitionerId, exceptionId: req.params.id, ...req.body }));
+    } catch (error) {
+        console.error(error);
+        const badRequest = ["INVALID_EXCEPTION_TYPE", "TIME_REQUIRED", "INVALID_TIME_FORMAT", "INVALID_TIME_RANGE", "CLOSED_CANNOT_HAVE_HOURS"].includes(error.message);
+        res.status(error.message === "PRACTITIONER_NOT_FOUND" || error.message === "EXCEPTION_NOT_FOUND" ? 404 : badRequest ? 400 : 500).json({ error: error.message });
+    }
+};
+
+export const deleteAdminAvailabilityException = async (req, res) => {
+    try {
+        res.json(await deleteException({ practitionerId: req.params.practitionerId, exceptionId: req.params.id }));
+    } catch (error) {
+        console.error(error);
+        res.status(error.message === "PRACTITIONER_NOT_FOUND" || error.message === "EXCEPTION_NOT_FOUND" ? 404 : 500).json({ error: error.message });
     }
 };

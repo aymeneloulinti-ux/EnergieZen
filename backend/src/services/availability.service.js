@@ -79,6 +79,15 @@ const getPractitioner = async (userId) => {
     return practitioner;
 };
 
+const getPractitionerById = async (practitionerId) => {
+    const practitioner = await prisma.practitioner.findUnique({ where: { id: practitionerId } });
+    if (!practitioner) throw new Error("PRACTITIONER_NOT_FOUND");
+    return practitioner;
+};
+
+const resolvePractitioner = async ({ userId, practitionerId }) =>
+    practitionerId ? getPractitionerById(practitionerId) : getPractitioner(userId);
+
 
 // ============================================================
 // AVAILABLE SLOTS
@@ -255,7 +264,14 @@ export const getAvailableSlots = async ({
                     ? "unavailable"
                     : isOccupied
                         ? "booked"
-                        : "available"
+                        : "available",
+                reason: exception?.type === "CLOSED"
+                    ? "blocked"
+                    : !insideCustomHours
+                        ? "unavailable"
+                        : isPastSlot
+                            ? "unavailable"
+                            : null
             });
         }
     }
@@ -283,10 +299,19 @@ export const getExceptions = async (userId) => {
     });
 };
 
+export const getExceptionsByPractitionerId = async (practitionerId) => {
+    await getPractitionerById(practitionerId);
+    return prisma.availabilityException.findMany({
+        where: { practitionerId },
+        orderBy: { date: "asc" }
+    });
+};
+
 
 // CREATE
 export const createException = async ({
     userId,
+    practitionerId,
     date,
     type,
     startTime,
@@ -294,7 +319,7 @@ export const createException = async ({
     reason
 }) => {
 
-    const practitioner = await getPractitioner(userId);
+    const practitioner = await resolvePractitioner({ userId, practitionerId });
 
     if (!date) {
         throw new Error("DATE_REQUIRED");
@@ -348,6 +373,7 @@ export const createException = async ({
 // UPDATE
 export const updateException = async ({
     userId,
+    practitionerId,
     exceptionId,
     date,
     type,
@@ -356,7 +382,7 @@ export const updateException = async ({
     reason
 }) => {
 
-    const practitioner = await getPractitioner(userId);
+    const practitioner = await resolvePractitioner({ userId, practitionerId });
 
     const exception =
         await prisma.availabilityException.findFirst({
@@ -409,10 +435,11 @@ export const updateException = async ({
 // DELETE
 export const deleteException = async ({
     userId,
+    practitionerId,
     exceptionId
 }) => {
 
-    const practitioner = await getPractitioner(userId);
+    const practitioner = await resolvePractitioner({ userId, practitionerId });
 
     const exception =
         await prisma.availabilityException.findFirst({

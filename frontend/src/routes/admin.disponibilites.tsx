@@ -1,108 +1,324 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { Ban, Plus } from "lucide-react";
+import { Ban, Plus, Trash2 } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
 import { AdminShell } from "@/components/admin/AdminShell";
-import { Switch } from "@/components/ui/switch";
-import { Input } from "@/components/ui/input";
+import {
+  createAdminAvailabilityException,
+  deleteAdminAvailabilityException,
+  getAdminAvailabilityExceptions,
+  getAdminPractitioners,
+  getAdminWeeklyAvailability,
+  updateAdminWeeklyAvailability,
+  type ApiAdminPractitioner,
+  type ApiAvailabilityException,
+  type ApiWeeklyAvailability,
+} from "@/lib/api";
 
 export const Route = createFileRoute("/admin/disponibilites")({
   head: () => ({
     meta: [
       { title: "Disponibilités — Maison Lumen" },
-      { name: "description", content: "Horaires hebdomadaires, pauses, congés et créneaux bloqués." },
-      { property: "og:title", content: "Disponibilités — Maison Lumen" },
-      { property: "og:description", content: "Gestion des horaires d'ouverture du cabinet." },
+      { name: "description", content: "Horaires hebdomadaires, congés et horaires personnalisés." },
       { name: "robots", content: "noindex" },
     ],
   }),
   component: Disponibilites,
 });
 
-const week = [
-  { day: "Lundi", open: false, from: "—", to: "—", pause: "—" },
-  { day: "Mardi", open: true, from: "09:00", to: "19:00", pause: "12:30 — 13:30" },
-  { day: "Mercredi", open: true, from: "09:00", to: "19:00", pause: "12:30 — 13:30" },
-  { day: "Jeudi", open: true, from: "09:00", to: "19:00", pause: "12:30 — 13:30" },
-  { day: "Vendredi", open: true, from: "09:00", to: "17:00", pause: "12:30 — 13:30" },
-  { day: "Samedi", open: true, from: "10:00", to: "16:00", pause: "—" },
-  { day: "Dimanche", open: false, from: "—", to: "—", pause: "—" },
-];
-
-const exceptions = [
-  { label: "Congés d'été", period: "17 — 31 août 2026", type: "Vacances" },
-  { label: "Assomption", period: "15 août 2026", type: "Jour férié" },
-  { label: "Formation à Gand", period: "4 septembre 2026, 9h — 18h", type: "Journée personnelle" },
-  { label: "Après-midi bloqué", period: "21 août 2026, 14h — 18h", type: "Indisponibilité" },
-];
+const dayLabels: Record<ApiWeeklyAvailability["dayOfWeek"], string> = {
+  MONDAY: "Lundi",
+  TUESDAY: "Mardi",
+  WEDNESDAY: "Mercredi",
+  THURSDAY: "Jeudi",
+  FRIDAY: "Vendredi",
+  SATURDAY: "Samedi",
+  SUNDAY: "Dimanche",
+};
+const days = Object.keys(dayLabels) as ApiWeeklyAvailability["dayOfWeek"][];
 
 function Disponibilites() {
+  const [practitioners, setPractitioners] = useState<ApiAdminPractitioner[]>([]);
+  const [selectedId, setSelectedId] = useState("");
+  const [weekly, setWeekly] = useState<ApiWeeklyAvailability[]>([]);
+  const [exceptions, setExceptions] = useState<ApiAvailabilityException[]>([]);
+  const [exception, setException] = useState({
+    date: "",
+    type: "CLOSED" as "CLOSED" | "CUSTOM_HOURS",
+    startTime: "09:00",
+    endTime: "18:00",
+    reason: "",
+  });
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [saved, setSaved] = useState(false);
+
+  useEffect(() => {
+    getAdminPractitioners()
+      .then((data) => {
+        setPractitioners(data);
+        setSelectedId(data[0]?.id ?? "");
+      })
+      .catch(() => setError("Impossible de récupérer les praticiennes"))
+      .finally(() => setLoading(false));
+  }, []);
+
+  useEffect(() => {
+    if (!selectedId) return;
+    setLoading(true);
+    setSaved(false);
+    Promise.all([
+      getAdminWeeklyAvailability(selectedId),
+      getAdminAvailabilityExceptions(selectedId),
+    ])
+      .then(([weeklyData, exceptionData]) => {
+        setWeekly(weeklyData);
+        setExceptions(exceptionData);
+      })
+      .catch((reason) =>
+        setError(
+          reason instanceof Error ? reason.message : "Impossible de récupérer les disponibilités",
+        ),
+      )
+      .finally(() => setLoading(false));
+  }, [selectedId]);
+
+  const schedule = useMemo(
+    () => days.map((day) => weekly.find((item) => item.dayOfWeek === day)),
+    [weekly],
+  );
+
+  const updateSchedule = (
+    day: ApiWeeklyAvailability["dayOfWeek"],
+    field: "startTime" | "endTime",
+    value: string,
+  ) => {
+    setWeekly((current) => {
+      const existing = current.find((item) => item.dayOfWeek === day);
+      if (existing)
+        return current.map((item) => (item.dayOfWeek === day ? { ...item, [field]: value } : item));
+      return [
+        ...current,
+        {
+          id: `new-${day}`,
+          dayOfWeek: day,
+          startTime: field === "startTime" ? value : "09:00",
+          endTime: field === "endTime" ? value : "18:00",
+          active: true,
+        },
+      ];
+    });
+    setSaved(false);
+  };
+
+  const toggleDay = (day: ApiWeeklyAvailability["dayOfWeek"], open: boolean) => {
+    setWeekly((current) =>
+      open
+        ? [
+            ...current,
+            {
+              id: `new-${day}`,
+              dayOfWeek: day,
+              startTime: "09:00",
+              endTime: "18:00",
+              active: true,
+            },
+          ]
+        : current.filter((item) => item.dayOfWeek !== day),
+    );
+    setSaved(false);
+  };
+
+  const saveSchedule = async () => {
+    setSaving(true);
+    setSaved(false);
+    setError(null);
+    try {
+      const data = await updateAdminWeeklyAvailability(
+        selectedId,
+        schedule
+          .filter((item): item is ApiWeeklyAvailability => Boolean(item))
+          .map(({ dayOfWeek, startTime, endTime }) => ({ dayOfWeek, startTime, endTime })),
+      );
+      setWeekly(data);
+      setSaved(true);
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : "Impossible d'enregistrer les horaires");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const addException = async () => {
+    if (!selectedId || !exception.date) return;
+    setError(null);
+    try {
+      const created = await createAdminAvailabilityException(selectedId, exception);
+      setExceptions((current) =>
+        [...current, created].sort((a, b) => a.date.localeCompare(b.date)),
+      );
+      setException({ date: "", type: "CLOSED", startTime: "09:00", endTime: "18:00", reason: "" });
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : "Impossible d'ajouter cette période");
+    }
+  };
+
+  const removeException = async (item: ApiAvailabilityException) => {
+    setError(null);
+    try {
+      await deleteAdminAvailabilityException(selectedId, item.id);
+      setExceptions((current) => current.filter((entry) => entry.id !== item.id));
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : "Impossible de supprimer cette période");
+    }
+  };
+
   return (
     <AdminShell
       title="Disponibilités"
-      subtitle="Horaires du cabinet et exceptions"
+      subtitle="Horaires et exceptions par praticienne"
       action={
-        <button className="inline-flex shrink-0 items-center gap-2 rounded-full bg-primary px-5 py-2.5 text-sm text-primary-foreground">
-          <Ban className="h-4 w-4" /> Bloquer une période
-        </button>
+        <div className="flex items-center gap-2">
+          <Ban className="h-4 w-4" />
+          <select
+            value={selectedId}
+            onChange={(event) => setSelectedId(event.target.value)}
+            className="rounded-full border border-border bg-background px-4 py-2 text-sm"
+          >
+            {practitioners.map((item) => (
+              <option key={item.id} value={item.id}>
+                {item.user.firstName} {item.user.lastName}
+              </option>
+            ))}
+          </select>
+        </div>
       }
     >
+      {error && <p className="mb-5 text-sm text-destructive">{error}</p>}
+      {loading && (
+        <p className="mb-5 text-sm text-muted-foreground">Chargement des disponibilités…</p>
+      )}
       <div className="grid gap-6 xl:grid-cols-[1.2fr_1fr]">
         <section className="rounded-2xl border border-border/70 bg-card p-6 shadow-soft">
           <h2 className="font-serif text-xl">Horaires hebdomadaires</h2>
           <ul className="mt-5 space-y-2">
-            {week.map((d) => (
-              <li
-                key={d.day}
-                className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 rounded-xl border border-border/70 bg-secondary/40 px-4 py-3 sm:grid-cols-[110px_1fr_auto]"
-              >
-                <span className="text-sm font-medium">{d.day}</span>
-                <span className="min-w-0 text-xs text-muted-foreground sm:text-sm">
-                  {d.open ? (
-                    <>
-                      {d.from} — {d.to}
-                      <span className="ml-2 text-muted-foreground/80">pause {d.pause}</span>
-                    </>
+            {schedule.map((item, index) => {
+              const day = days[index];
+              return (
+                <li
+                  key={day}
+                  className="grid gap-3 rounded-xl border border-border/70 bg-secondary/40 px-4 py-3 sm:grid-cols-[110px_1fr_auto] sm:items-center"
+                >
+                  <span className="text-sm font-medium">{dayLabels[day]}</span>
+                  {item ? (
+                    <div className="grid grid-cols-2 gap-2">
+                      <input
+                        type="time"
+                        value={item.startTime}
+                        onChange={(event) => updateSchedule(day, "startTime", event.target.value)}
+                        className="rounded-lg border border-border bg-background px-2 py-1 text-sm"
+                      />
+                      <input
+                        type="time"
+                        value={item.endTime}
+                        onChange={(event) => updateSchedule(day, "endTime", event.target.value)}
+                        className="rounded-lg border border-border bg-background px-2 py-1 text-sm"
+                      />
+                    </div>
                   ) : (
-                    "Fermé"
+                    <span className="text-sm text-muted-foreground">Fermé</span>
                   )}
-                </span>
-                <Switch defaultChecked={d.open} />
-              </li>
-            ))}
+                  <input
+                    type="checkbox"
+                    checked={!!item}
+                    onChange={(event) => toggleDay(day, event.target.checked)}
+                    aria-label={`${item ? "Fermer" : "Ouvrir"} ${dayLabels[day]}`}
+                  />
+                </li>
+              );
+            })}
           </ul>
-
-          <div className="mt-6 grid gap-4 sm:grid-cols-3">
-            <div>
-              <label className="text-xs text-muted-foreground">Ouverture</label>
-              <Input className="mt-2 rounded-xl" defaultValue="09:00" />
-            </div>
-            <div>
-              <label className="text-xs text-muted-foreground">Fermeture</label>
-              <Input className="mt-2 rounded-xl" defaultValue="19:00" />
-            </div>
-            <div>
-              <label className="text-xs text-muted-foreground">Pause déjeuner</label>
-              <Input className="mt-2 rounded-xl" defaultValue="12:30 — 13:30" />
-            </div>
-          </div>
+          <button
+            type="button"
+            onClick={() => void saveSchedule()}
+            disabled={saving || !selectedId}
+            className="mt-6 rounded-full bg-primary px-5 py-2.5 text-sm text-primary-foreground"
+          >
+            {saving ? "Enregistrement…" : "Enregistrer les horaires"}
+          </button>
+          {saved && <p className="mt-3 text-sm text-emerald-700">Horaires enregistrés.</p>}
         </section>
-
         <section className="rounded-2xl border border-border/70 bg-card p-6 shadow-soft">
           <div className="flex items-center justify-between gap-4">
-            <h2 className="font-serif text-xl">Exceptions</h2>
-            <button className="inline-flex items-center gap-1.5 rounded-full border border-border px-4 py-2 text-xs hover:bg-accent">
+            <h2 className="font-serif text-xl">Congés et exceptions</h2>
+            <button
+              type="button"
+              onClick={() => void addException()}
+              className="inline-flex items-center gap-1.5 rounded-full border border-border px-4 py-2 text-xs hover:bg-accent"
+            >
               <Plus className="h-3.5 w-3.5" /> Ajouter
             </button>
           </div>
+          <div className="mt-5 grid gap-2">
+            <input
+              type="date"
+              value={exception.date}
+              onChange={(event) => setException({ ...exception, date: event.target.value })}
+              className="rounded-lg border border-border bg-background px-3 py-2 text-sm"
+            />
+            <select
+              value={exception.type}
+              onChange={(event) =>
+                setException({
+                  ...exception,
+                  type: event.target.value as "CLOSED" | "CUSTOM_HOURS",
+                })
+              }
+              className="rounded-lg border border-border bg-background px-3 py-2 text-sm"
+            >
+              <option value="CLOSED">Congé / journée fermée</option>
+              <option value="CUSTOM_HOURS">Horaires personnalisés</option>
+            </select>
+            {exception.type === "CUSTOM_HOURS" && (
+              <div className="grid grid-cols-2 gap-2">
+                <input
+                  type="time"
+                  value={exception.startTime}
+                  onChange={(event) =>
+                    setException({ ...exception, startTime: event.target.value })
+                  }
+                  className="rounded-lg border border-border bg-background px-3 py-2 text-sm"
+                />
+                <input
+                  type="time"
+                  value={exception.endTime}
+                  onChange={(event) => setException({ ...exception, endTime: event.target.value })}
+                  className="rounded-lg border border-border bg-background px-3 py-2 text-sm"
+                />
+              </div>
+            )}
+            <input
+              placeholder="Motif (facultatif)"
+              value={exception.reason}
+              onChange={(event) => setException({ ...exception, reason: event.target.value })}
+              className="rounded-lg border border-border bg-background px-3 py-2 text-sm"
+            />
+          </div>
           <ul className="mt-5 divide-y divide-border/70">
-            {exceptions.map((e) => (
-              <li key={e.label} className="flex items-start justify-between gap-4 py-4">
-                <div className="min-w-0">
-                  <p className="text-sm font-medium">{e.label}</p>
-                  <p className="mt-1 text-xs text-muted-foreground">{e.period}</p>
-                </div>
-                <span className="shrink-0 rounded-full bg-secondary px-3 py-1 text-[11px] text-muted-foreground">
-                  {e.type}
+            {exceptions.map((item) => (
+              <li key={item.id} className="flex items-center justify-between gap-3 py-3 text-sm">
+                <span>
+                  {new Date(item.date).toLocaleDateString("fr-FR")} ·{" "}
+                  {item.type === "CLOSED" ? "Fermé" : `${item.startTime} — ${item.endTime}`}
                 </span>
+                <button
+                  type="button"
+                  onClick={() => void removeException(item)}
+                  aria-label="Supprimer l'exception"
+                  className="grid h-8 w-8 place-items-center rounded-full border border-border text-destructive hover:bg-destructive/10"
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                </button>
               </li>
             ))}
           </ul>

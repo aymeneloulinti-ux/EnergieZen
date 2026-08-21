@@ -2,7 +2,9 @@ import { Router } from "express";
 
 import {
     getWeekly,
-    updateWeekly
+    updateWeekly,
+    getWeeklyForAdmin,
+    updateWeeklyForAdmin
 } from "../controllers/weekly-availability.controller.js";
 
 import { authenticate } from "../middlewares/auth.middleware.js";
@@ -22,6 +24,20 @@ weeklyAvailabilityRoutes.put(
     authenticate,
     requireRole("PRACTITIONER", "ADMIN"),
     updateWeekly
+);
+
+weeklyAvailabilityRoutes.get(
+    "/practitioner/:practitionerId",
+    authenticate,
+    requireRole("ADMIN"),
+    getWeeklyForAdmin
+);
+
+weeklyAvailabilityRoutes.put(
+    "/practitioner/:practitionerId",
+    authenticate,
+    requireRole("ADMIN"),
+    updateWeeklyForAdmin
 );
 
 export default weeklyAvailabilityRoutes;

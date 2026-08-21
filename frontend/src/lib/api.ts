@@ -258,6 +258,69 @@ export type ApiAdminPractitioner = {
 export const getAdminPractitioners = () =>
   api<ApiAdminPractitioner[]>("/admin/practitioners", { auth: true });
 
+export type ApiWeeklyAvailability = {
+  id: string;
+  dayOfWeek: "MONDAY" | "TUESDAY" | "WEDNESDAY" | "THURSDAY" | "FRIDAY" | "SATURDAY" | "SUNDAY";
+  startTime: string;
+  endTime: string;
+  active: boolean;
+};
+
+export type ApiAvailabilityException = {
+  id: string;
+  date: string;
+  type: "CLOSED" | "CUSTOM_HOURS";
+  startTime: string | null;
+  endTime: string | null;
+  reason: string | null;
+};
+
+export const getAdminWeeklyAvailability = (practitionerId: string) =>
+  api<ApiWeeklyAvailability[]>(
+    `/availability/weekly/practitioner/${encodeURIComponent(practitionerId)}`,
+    { auth: true },
+  );
+
+export const updateAdminWeeklyAvailability = (
+  practitionerId: string,
+  availabilities: Array<{
+    dayOfWeek: ApiWeeklyAvailability["dayOfWeek"];
+    startTime: string;
+    endTime: string;
+  }>,
+) =>
+  api<ApiWeeklyAvailability[]>(
+    `/availability/weekly/practitioner/${encodeURIComponent(practitionerId)}`,
+    { method: "PUT", auth: true, body: JSON.stringify({ availabilities }) },
+  );
+
+export const getAdminAvailabilityExceptions = (practitionerId: string) =>
+  api<ApiAvailabilityException[]>(
+    `/availability/admin/${encodeURIComponent(practitionerId)}/exceptions`,
+    { auth: true },
+  );
+
+export const createAdminAvailabilityException = (
+  practitionerId: string,
+  body: {
+    date: string;
+    type: "CLOSED" | "CUSTOM_HOURS";
+    startTime?: string;
+    endTime?: string;
+    reason?: string;
+  },
+) =>
+  api<ApiAvailabilityException>(
+    `/availability/admin/${encodeURIComponent(practitionerId)}/exceptions`,
+    { method: "POST", auth: true, body: JSON.stringify(body) },
+  );
+
+export const deleteAdminAvailabilityException = (practitionerId: string, id: string) =>
+  api<void>(
+    `/availability/admin/${encodeURIComponent(practitionerId)}/exceptions/${encodeURIComponent(id)}`,
+    { method: "DELETE", auth: true },
+  );
+
 export const addServiceToPractitioner = (practitionerId: string, serviceId: string) =>
   api<ApiAdminPractitioner>(
     `/practitioners/${encodeURIComponent(practitionerId)}/services/${encodeURIComponent(serviceId)}`,
@@ -294,6 +357,7 @@ export type ApiAvailabilitySlot = {
   endAt: string;
   time: string;
   state: "available" | "booked" | "unavailable";
+  reason?: "blocked" | "unavailable" | null;
 };
 
 export const getAvailability = ({

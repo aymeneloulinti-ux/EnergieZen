@@ -75,17 +75,31 @@ export const getWeeklyAvailability = async (userId) => {
     });
 };
 
+export const getWeeklyAvailabilityByPractitionerId = async (practitionerId) => {
+    const practitioner = await prisma.practitioner.findUnique({
+        where: { id: practitionerId }
+    });
+
+    if (!practitioner) {
+        throw new Error("PRACTITIONER_NOT_FOUND");
+    }
+
+    return prisma.weeklyAvailability.findMany({
+        where: { practitionerId },
+        orderBy: [{ dayOfWeek: "asc" }, { startTime: "asc" }]
+    });
+};
+
 
 export const updateWeeklyAvailability = async ({
     userId,
+    practitionerId,
     availabilities
 }) => {
 
-    const practitioner = await prisma.practitioner.findUnique({
-        where: {
-            userId
-        }
-    });
+    const practitioner = practitionerId
+        ? await prisma.practitioner.findUnique({ where: { id: practitionerId } })
+        : await prisma.practitioner.findUnique({ where: { userId } });
 
     if (!practitioner) {
         throw new Error("PRACTITIONER_NOT_FOUND");

@@ -5,7 +5,11 @@ import {
     getAvailabilityExceptions,
     createAvailabilityException,
     updateAvailabilityException,
-    deleteAvailabilityException
+    deleteAvailabilityException,
+    getAdminAvailabilityExceptions,
+    createAdminAvailabilityException,
+    updateAdminAvailabilityException,
+    deleteAdminAvailabilityException
 } from "../controllers/availability.controller.js";
 
 import { authenticate } from "../middlewares/auth.middleware.js";
@@ -42,5 +46,10 @@ router.delete(
     "/exceptions/:id",
     deleteAvailabilityException
 );
+
+router.get("/admin/:practitionerId/exceptions", getAdminAvailabilityExceptions);
+router.post("/admin/:practitionerId/exceptions", createAdminAvailabilityException);
+router.put("/admin/:practitionerId/exceptions/:id", updateAdminAvailabilityException);
+router.delete("/admin/:practitionerId/exceptions/:id", deleteAdminAvailabilityException);
 
 export default router;
