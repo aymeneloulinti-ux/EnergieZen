@@ -146,9 +146,7 @@ async function main() {
         });
     }
 
-    // --------------------
-    // Services
-    // --------------------
+    
     const clientPassword = await bcrypt.hash(
         "Client123!",
         12

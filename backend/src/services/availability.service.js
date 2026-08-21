@@ -1,7 +1,9 @@
 import prisma from "../config/prisma.js";
 import {
+    APP_TIMEZONE,
     zonedDateTimeToUTC
 } from "../utils/date.js";
+import { formatInTimeZone } from "date-fns-tz";
 
 
 // ============================================================
@@ -88,7 +90,7 @@ export const getAvailableSlots = async ({
     date
 }) => {
 
-    const targetDate = new Date(`${date}T00:00:00`);
+    const targetDate = new Date(`${date}T12:00:00Z`);
 
     if (Number.isNaN(targetDate.getTime())) {
         throw new Error("INVALID_DATE");
@@ -127,6 +129,10 @@ export const getAvailableSlots = async ({
         date,
         "23:59"
     );
+    const currentLocalDate = formatInTimeZone(new Date(), APP_TIMEZONE, "yyyy-MM-dd");
+    const currentLocalTime = formatInTimeZone(new Date(), APP_TIMEZONE, "HH:mm");
+    const isPastDate = date < currentLocalDate;
+    const isToday = date === currentLocalDate;
 
     // -------------------------
     // Exception
@@ -142,41 +148,35 @@ export const getAvailableSlots = async ({
         }
     });
 
-    if (exception?.type === "CLOSED") {
-        return [];
-    }
-
     // -------------------------
     // Horaires
     // -------------------------
 
     let availability;
 
-    if (exception?.type === "CUSTOM_HOURS") {
-
-        if (!exception.startTime || !exception.endTime) {
-            throw new Error("INVALID_EXCEPTION");
+    const weeklyAvailability = await prisma.weeklyAvailability.findMany({
+        where: {
+            practitionerId,
+            dayOfWeek,
+            active: true
+        },
+        orderBy: {
+            startTime: "asc"
         }
+    });
 
-        availability = [
-            {
-                startTime: exception.startTime,
-                endTime: exception.endTime
-            }
-        ];
+    if (exception?.type === "CUSTOM_HOURS" &&
+        (!exception.startTime || !exception.endTime)) {
+        throw new Error("INVALID_EXCEPTION");
+    }
 
-    } else {
+    availability = weeklyAvailability;
 
-        availability = await prisma.weeklyAvailability.findMany({
-            where: {
-                practitionerId,
-                dayOfWeek,
-                active: true
-            },
-            orderBy: {
-                startTime: "asc"
-            }
-        });
+    if (!availability.length && exception?.type === "CUSTOM_HOURS") {
+        availability = [{
+            startTime: exception.startTime,
+            endTime: exception.endTime
+        }];
     }
 
     if (!availability.length) {
@@ -241,15 +241,22 @@ export const getAvailableSlots = async ({
 
             });
 
-            if (!isOccupied) {
+            const insideCustomHours = exception?.type !== "CUSTOM_HOURS" || (
+                current >= timeToMinutes(exception.startTime) &&
+                current + duration <= timeToMinutes(exception.endTime)
+            );
+            const isPastSlot = isPastDate || (isToday && formatTime(current) <= currentLocalTime);
 
-                slots.push({
-                    startAt: slotStart,
-                    endAt: slotEnd,
-                    time: formatTime(current)
-                });
-
-            }
+            slots.push({
+                startAt: slotStart,
+                endAt: slotEnd,
+                time: formatTime(current),
+                state: exception?.type === "CLOSED" || !insideCustomHours || isPastSlot
+                    ? "unavailable"
+                    : isOccupied
+                        ? "booked"
+                        : "available"
+            });
         }
     }
 

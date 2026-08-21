@@ -1,5 +1,7 @@
 import prisma from "../config/prisma.js";
 import { getAvailableSlots } from "./availability.service.js";
+import { APP_TIMEZONE } from "../utils/date.js";
+import { formatInTimeZone } from "date-fns-tz";
 
 export const createAppointment = async ({
     clientId,
@@ -20,6 +22,23 @@ export const createAppointment = async ({
 
     if (Number.isNaN(start.getTime())) {
         throw new Error("INVALID_START_AT");
+    }
+
+    // ============================================================
+    // 1b. Validation de date passée
+    // ============================================================
+
+    const currentLocalDate = formatInTimeZone(new Date(), APP_TIMEZONE, "yyyy-MM-dd");
+    const currentLocalTime = formatInTimeZone(new Date(), APP_TIMEZONE, "HH:mm");
+    const appointmentLocalDate = formatInTimeZone(start, APP_TIMEZONE, "yyyy-MM-dd");
+    const appointmentLocalTime = formatInTimeZone(start, APP_TIMEZONE, "HH:mm");
+
+    if (appointmentLocalDate < currentLocalDate) {
+        throw new Error("PAST_DATE");
+    }
+
+    if (appointmentLocalDate === currentLocalDate && appointmentLocalTime < currentLocalTime) {
+        throw new Error("PAST_TIME");
     }
 
     // ============================================================
@@ -76,9 +95,7 @@ export const createAppointment = async ({
     // 6. Déterminer la date locale
     // ============================================================
 
-    const localDate = new Intl.DateTimeFormat("en-CA", {
-        timeZone: "Europe/Brussels"
-    }).format(start);
+    const localDate = appointmentLocalDate;
 
     // ============================================================
     // 7. Vérifier que le créneau est réellement disponible
@@ -93,6 +110,7 @@ export const createAppointment = async ({
     const matchingSlot = availableSlots.find((slot) => {
 
         return (
+            slot.state === "available" &&
             slot.startAt.getTime() === start.getTime() &&
             slot.endAt.getTime() === end.getTime()
         );

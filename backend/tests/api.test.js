@@ -518,6 +518,33 @@ test("AVAILABILITY - Exceptions du praticien", async () => {
     });
 
 
+test("AVAILABILITY - Date passée → aucun créneau available", async () => {
+    const response = await request(
+        `/availability/slots?practitionerId=${fixtures.practitioner.id}&serviceId=${fixtures.service.id}&date=2026-08-20`
+    );
+
+    assert.equal(response.status, 200);
+    assert.ok(Array.isArray(response.data));
+    
+    const availableSlots = response.data.filter((slot) => slot.state === "available");
+    assert.equal(availableSlots.length, 0, "Aucun créneau ne doit être available pour une date passée");
+});
+
+
+test("AVAILABILITY - Date future → créneaux disponibles", async () => {
+    const futureDate = getLocalDate(7);
+    const response = await request(
+        `/availability/slots?practitionerId=${fixtures.practitioner.id}&serviceId=${fixtures.service.id}&date=${futureDate}`
+    );
+
+    assert.equal(response.status, 200);
+    assert.ok(Array.isArray(response.data));
+    
+    const availableSlots = response.data.filter((slot) => slot.state === "available");
+    assert.ok(availableSlots.length > 0, "Une date future doit avoir des créneaux available");
+});
+
+
 // ============================================================
 // APPOINTMENTS
 // ============================================================
@@ -578,6 +605,30 @@ test("APPOINTMENTS - Création sans date refusée", async () => {
         );
 
         assert.equal(response.status, 400);
+});
+
+
+test("APPOINTMENTS - Création avec date passée → rejetée", async () => {
+    const pastDate = new Date();
+    pastDate.setDate(pastDate.getDate() - 1);
+    const pastDateISO = new Intl.DateTimeFormat("en-CA", {
+        timeZone: "Europe/Brussels"
+    }).format(pastDate) + "T10:00:00Z";
+
+    const response = await request(
+        "/appointments",
+        {
+            method: "POST",
+            token: tokens.client,
+            body: {
+                practitionerId: fixtures.practitioner.id,
+                serviceId: fixtures.service.id,
+                startAt: pastDateISO
+            }
+        }
+    );
+
+    assert.equal(response.status, 400, "Création avec date passée doit être rejetée");
 });
 
 

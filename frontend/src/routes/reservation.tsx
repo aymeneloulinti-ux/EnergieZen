@@ -1,5 +1,5 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { ArrowLeft, ArrowRight, Check, Clock, ShieldCheck } from "lucide-react";
 import { SiteShell } from "@/components/site/SiteShell";
 import { Input } from "@/components/ui/input";
@@ -7,13 +7,12 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Calendar } from "@/components/ui/calendar";
 import { cn } from "@/lib/utils";
-import {
-  services,
-  practitioners,
-  timeSlots,
-  formatPrice,
-  getService,
-} from "@/data/site";
+import { formatPrice } from "@/data/site";
+import { ApiError, createAppointment } from "@/lib/api";
+import { useAvailability } from "@/hooks/useAvailability";
+import { useAuth } from "@/hooks/useAuth";
+import { usePractitioners } from "@/hooks/usePractitioners";
+import { useServices } from "@/hooks/useServices";
 
 type Search = { service?: string | undefined };
 
@@ -41,32 +40,109 @@ const stepLabels = ["Soin", "Praticienne", "Date", "Horaire", "Vos infos", "Réc
 function Reservation() {
   const navigate = useNavigate();
   const { service: presetService } = Route.useSearch();
-  const [step, setStep] = useState(presetService ? 2 : 1);
+  const { user, isAuthenticated, login, register } = useAuth();
+  const [step, setStep] = useState(1);
   const [serviceSlug, setServiceSlug] = useState(presetService ?? "");
   const [practitionerId, setPractitionerId] = useState("");
-  const [date, setDate] = useState<Date | undefined>(new Date(2026, 7, 20));
+  const [date, setDate] = useState<Date | undefined>(new Date());
   const [time, setTime] = useState("");
+  const [submitError, setSubmitError] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
   const [form, setForm] = useState({
     first: "",
     last: "",
     email: "",
     phone: "",
     message: "",
+    password: "",
   });
 
-  const service = getService(serviceSlug);
+  useEffect(() => {
+    if (!user) return;
+    setForm((current) => ({
+      ...current,
+      first: current.first || user.firstName,
+      last: current.last || user.lastName,
+      email: current.email || user.email,
+      phone: current.phone || user.phone || "",
+    }));
+  }, [user]);
+
+  const { services, loading: servicesLoading, error: servicesError } = useServices();
+  const { practitioners, loading: practitionersLoading, error: practitionersError } = usePractitioners();
+  const service = services.find((item) => item.slug === serviceSlug);
+  const compatiblePractitioners = service
+    ? practitioners.filter((item) => item.services.some((itemService) => itemService.id === service.id))
+    : [];
   const practitioner = practitioners.find((p) => p.id === practitionerId);
+  const dateValue = date
+    ? new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Brussels" }).format(date)
+    : "";
+  const { slots, loading: slotsLoading, error: slotsError } = useAvailability({
+    practitionerId,
+    serviceId: service?.id ?? "",
+    date: dateValue,
+  });
+  const selectedSlot = slots.find((slot) => slot.time === time && slot.state === "available");
+
+  useEffect(() => {
+    if (!servicesLoading && presetService && service) setStep(2);
+  }, [presetService, service, servicesLoading]);
+
+  useEffect(() => {
+    if (practitionerId && !compatiblePractitioners.some((item) => item.id === practitionerId)) {
+      setPractitionerId("");
+      setTime("");
+    }
+  }, [compatiblePractitioners, practitionerId]);
+
   const dateLabel = date
     ? date.toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long" })
     : "";
 
   const canContinue =
-    (step === 1 && !!serviceSlug) ||
+    (step === 1 && !!service) ||
     (step === 2 && !!practitionerId) ||
     (step === 3 && !!date) ||
     (step === 4 && !!time) ||
-    (step === 5 && form.first && form.last && form.email && form.phone) ||
+    (step === 5 && form.first && form.last && form.email && form.phone && (isAuthenticated || form.password)) ||
     step === 6;
+
+  const submitReservation = async () => {
+    if (!service || !practitioner || !selectedSlot || submitting) return;
+
+    setSubmitting(true);
+    setSubmitError(null);
+
+    try {
+      if (!isAuthenticated) {
+        try {
+          await register({
+            email: form.email,
+            password: form.password,
+            firstName: form.first,
+            lastName: form.last,
+            phone: form.phone,
+          });
+        } catch (reason) {
+          if (!(reason instanceof ApiError) || reason.status !== 409) throw reason;
+          await login(form.email, form.password);
+        }
+      }
+
+      const appointment = await createAppointment({
+        practitionerId: practitioner.id,
+        serviceId: service.id,
+        startAt: selectedSlot.startAt,
+      });
+
+      navigate({ to: "/confirmation", search: { appointmentId: appointment.id } });
+    } catch (reason) {
+      setSubmitError(reason instanceof Error ? reason.message : "Impossible de créer le rendez-vous");
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
   return (
     <SiteShell>
@@ -95,42 +171,50 @@ function Reservation() {
             Étape {step} sur 6 — {stepLabels[step - 1]}
           </p>
         </div>
-
         <div className="mt-8 rounded-[2rem] border border-border/70 bg-card p-6 shadow-soft sm:p-9">
           {step === 1 && (
             <div>
               <h2 className="text-2xl">Quel soin souhaitez-vous ?</h2>
-              <div className="mt-6 space-y-3">
-                {services.map((s) => (
-                  <button
-                    key={s.slug}
-                    type="button"
-                    onClick={() => setServiceSlug(s.slug)}
-                    className={cn(
-                      "grid w-full grid-cols-[minmax(0,1fr)_auto] items-center gap-4 rounded-2xl border p-5 text-left transition-all",
-                      serviceSlug === s.slug
-                        ? "border-sage bg-sage-soft/40"
-                        : "border-border hover:bg-accent/60",
-                    )}
-                  >
-                    <span className="min-w-0">
-                      <span className="block font-serif text-lg">{s.name}</span>
-                      <span className="mt-1 block text-sm text-muted-foreground">
-                        {s.duration} minutes · {s.short}
+              {servicesLoading && <p className="mt-6 text-muted-foreground">Chargement des soins…</p>}
+              {servicesError && <p className="mt-6 text-destructive">{servicesError}</p>}
+              {!servicesLoading && !servicesError && presetService && !service && (
+                <p className="mt-6 text-destructive">Cette prestation n&apos;est plus disponible.</p>
+              )}
+              {!servicesLoading && !servicesError && (
+                <div className="mt-6 space-y-3">
+                  {services.map((s) => (
+                    <button
+                      key={s.slug}
+                      type="button"
+                      onClick={() => setServiceSlug(s.slug)}
+                      className={cn(
+                        "grid w-full grid-cols-[minmax(0,1fr)_auto] items-center gap-4 rounded-2xl border p-5 text-left transition-all",
+                        serviceSlug === s.slug
+                          ? "border-sage bg-sage-soft/40"
+                          : "border-border hover:bg-accent/60",
+                      )}
+                    >
+                      <span className="min-w-0">
+                        <span className="block font-serif text-lg">{s.name}</span>
+                        <span className="mt-1 block text-sm text-muted-foreground">
+                          {s.duration} minutes · {s.description}
+                        </span>
                       </span>
-                    </span>
-                    <span className="shrink-0 font-serif text-xl">{formatPrice(s.price)}</span>
-                  </button>
-                ))}
-              </div>
+                      <span className="shrink-0 font-serif text-xl">{formatPrice(s.price)}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
           )}
 
           {step === 2 && (
             <div>
               <h2 className="text-2xl">Avec qui ?</h2>
+              {practitionersLoading && <p className="mt-6 text-muted-foreground">Chargement des praticiens…</p>}
+              {practitionersError && <p className="mt-6 text-destructive">{practitionersError}</p>}
               <div className="mt-6 grid gap-3 sm:grid-cols-2">
-                {practitioners.map((p) => (
+                {!practitionersLoading && !practitionersError && compatiblePractitioners.map((p) => (
                   <button
                     key={p.id}
                     type="button"
@@ -153,6 +237,9 @@ function Reservation() {
                   </button>
                 ))}
               </div>
+              {!practitionersLoading && !practitionersError && compatiblePractitioners.length === 0 && (
+                <p className="mt-6 text-muted-foreground">Aucun praticien ne propose ce soin.</p>
+              )}
             </div>
           )}
 
@@ -163,9 +250,16 @@ function Reservation() {
                 <Calendar
                   mode="single"
                   selected={date}
-                  onSelect={setDate}
+                    onSelect={(nextDate) => {
+                      setDate(nextDate);
+                      setTime("");
+                    }}
                   weekStartsOn={1}
-                  disabled={{ dayOfWeek: [0, 1] }}
+                  disabled={(d) => {
+                    const today = new Date();
+                    today.setHours(0, 0, 0, 0);
+                    return d < today || d.getDay() === 0 || d.getDay() === 1;
+                  }}
                   className={cn("pointer-events-auto p-3")}
                 />
               </div>
@@ -178,20 +272,20 @@ function Reservation() {
           {step === 4 && (
             <div>
               <h2 className="text-2xl">Horaires du {dateLabel}</h2>
-              <div className="mt-6 grid grid-cols-3 gap-2.5 sm:grid-cols-4">
-                {timeSlots.map((slot) => {
-                  const disabled = slot.state !== "available";
-                  const selected = time === slot.time;
-                  return (
+              {slotsLoading && <p className="mt-6 text-muted-foreground">Chargement des créneaux…</p>}
+              {slotsError && <p className="mt-6 text-destructive">{slotsError}</p>}
+              {!slotsLoading && !slotsError && (
+                <div className="mt-6 grid grid-cols-3 gap-2.5 sm:grid-cols-4">
+                  {slots.map((slot) => (
                     <button
                       key={slot.time}
                       type="button"
-                      disabled={disabled}
+                      disabled={slot.state !== "available"}
                       onClick={() => setTime(slot.time)}
                       className={cn(
                         "rounded-full border py-3 text-sm transition-all",
-                        selected && "border-sage bg-sage text-primary-foreground",
-                        !selected && !disabled && "border-border hover:border-sage hover:bg-accent",
+                        time === slot.time && slot.state === "available" && "border-sage bg-sage text-primary-foreground",
+                        slot.state === "available" && time !== slot.time && "border-border hover:border-sage hover:bg-accent",
                         slot.state === "booked" &&
                           "cursor-not-allowed border-dashed border-border bg-secondary/50 text-muted-foreground line-through",
                         slot.state === "unavailable" &&
@@ -200,9 +294,12 @@ function Reservation() {
                     >
                       {slot.time}
                     </button>
-                  );
-                })}
-              </div>
+                  ))}
+                </div>
+              )}
+              {!slotsLoading && !slotsError && slots.length === 0 && (
+                <p className="mt-6 text-muted-foreground">Aucun créneau disponible pour cette date.</p>
+              )}
               <div className="mt-6 flex flex-wrap gap-x-6 gap-y-2 text-xs text-muted-foreground">
                 <span className="flex items-center gap-2">
                   <i className="h-3 w-3 rounded-full border border-border" /> Disponible
@@ -223,7 +320,17 @@ function Reservation() {
 
           {step === 5 && (
             <div>
-              <h2 className="text-2xl">Vos coordonnées</h2>
+              <h2 className="text-2xl">{isAuthenticated ? "Vos informations" : "Vos coordonnées"}</h2>
+              {isAuthenticated ? (
+                <p className="mt-3 text-sm text-muted-foreground">
+                  Vous êtes connecté·e en tant que {user?.email}.
+                </p>
+              ) : (
+                <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
+                  Ces informations serviront à créer votre espace client ou à vous connecter à
+                  votre compte existant.
+                </p>
+              )}
               <div className="mt-6 grid gap-5 sm:grid-cols-2">
                 <div>
                   <Label htmlFor="first">Prénom</Label>
@@ -266,6 +373,22 @@ function Reservation() {
                     onChange={(e) => setForm({ ...form, phone: e.target.value })}
                   />
                 </div>
+                {!isAuthenticated && (
+                  <div className="sm:col-span-2">
+                    <Label htmlFor="password">Mot de passe</Label>
+                    <Input
+                      id="password"
+                      type="password"
+                      className="mt-2 rounded-xl"
+                      placeholder="Minimum 8 caractères"
+                      value={form.password}
+                      onChange={(e) => setForm({ ...form, password: e.target.value })}
+                    />
+                    <p className="mt-2 text-xs text-muted-foreground">
+                      Ce mot de passe vous permettra d&apos;accéder à votre espace client.
+                    </p>
+                  </div>
+                )}
                 <div className="sm:col-span-2">
                   <Label htmlFor="message">Message (facultatif)</Label>
                   <Textarea
@@ -333,26 +456,17 @@ function Reservation() {
             ) : (
               <button
                 type="button"
-                onClick={() =>
-                  navigate({
-                    to: "/paiement",
-                    search: {
-                      service: serviceSlug,
-                      practitioner: practitionerId,
-                      date: date?.toISOString().slice(0, 10),
-                      time,
-                      name: `${form.first} ${form.last}`.trim(),
-                      email: form.email,
-                    },
-                  })
-                }
+                disabled={!canContinue || submitting}
+                onClick={submitReservation}
                 className="inline-flex items-center justify-center gap-2 rounded-full bg-primary px-7 py-3 text-sm text-primary-foreground transition-transform hover:-translate-y-0.5"
               >
-                Confirmer et payer <Check className="h-4 w-4" />
+                          {submitting ? "Création en cours…" : "Confirmer la réservation"} <Check className="h-4 w-4" />
               </button>
             )}
           </div>
         </div>
+
+          {submitError && <p className="mt-4 text-sm text-destructive">{submitError}</p>}
 
         <p className="mt-6 flex items-center justify-center gap-2 text-xs text-muted-foreground">
           <Clock className="h-3.5 w-3.5" /> Besoin d'aide ?{" "}

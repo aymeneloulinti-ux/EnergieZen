@@ -47,6 +47,16 @@ export const createAppointment = async (req, res) => {
                     error: "La date et l'heure du rendez-vous sont invalides"
                 });
 
+            case "PAST_DATE":
+                return res.status(400).json({
+                    error: "Impossible de réserver une date passée"
+                });
+
+            case "PAST_TIME":
+                return res.status(400).json({
+                    error: "Ce créneau est déjà passé"
+                });
+
             case "SERVICE_NOT_FOUND":
                 return res.status(404).json({
                     error: "Service introuvable ou inactif"

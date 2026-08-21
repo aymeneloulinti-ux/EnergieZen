@@ -1,10 +1,13 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { useEffect, useState } from "react";
 import { CalendarPlus, Check, Home, MapPin, Mail } from "lucide-react";
 import { SiteShell } from "@/components/site/SiteShell";
 import { getService, practitioners, studio } from "@/data/site";
+import { getAppointment, type ApiAppointment } from "@/lib/api";
 
 type Search = {
   service?: string | undefined;
+  appointmentId?: string | undefined;
   practitioner?: string | undefined;
   date?: string | undefined;
   time?: string | undefined;
@@ -15,6 +18,7 @@ const str = (v: unknown) => (typeof v === "string" && v ? v : undefined);
 export const Route = createFileRoute("/confirmation")({
   validateSearch: (search: Record<string, unknown>): Search => ({
     service: str(search["service"]),
+    appointmentId: str(search["appointmentId"]),
     practitioner: str(search["practitioner"]),
     date: str(search["date"]),
     time: str(search["time"]),
@@ -33,9 +37,58 @@ export const Route = createFileRoute("/confirmation")({
 
 function Confirmation() {
   const s = Route.useSearch();
-  const service = getService(s.service ?? "soin-energetique");
-  const practitioner = practitioners.find((p) => p.id === s.practitioner) ?? practitioners[0]!;
-  const dateLabel = s.date
+  const [appointment, setAppointment] = useState<ApiAppointment | null>(null);
+  const [appointmentLoading, setAppointmentLoading] = useState(!!s.appointmentId);
+  const [appointmentError, setAppointmentError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!s.appointmentId) return;
+
+    setAppointmentLoading(true);
+    getAppointment(s.appointmentId)
+      .then(setAppointment)
+      .catch((reason: unknown) =>
+        setAppointmentError(reason instanceof Error ? reason.message : "Impossible de récupérer le rendez-vous"),
+      )
+      .finally(() => setAppointmentLoading(false));
+  }, [s.appointmentId]);
+
+  if (appointmentLoading) {
+    return (
+      <SiteShell>
+        <p className="mx-auto max-w-2xl px-5 pt-16 text-center text-muted-foreground">
+          Chargement de votre rendez-vous…
+        </p>
+      </SiteShell>
+    );
+  }
+
+  if (s.appointmentId && (appointmentError || !appointment)) {
+    return (
+      <SiteShell>
+        <p className="mx-auto max-w-2xl px-5 pt-16 text-center text-destructive">
+          {appointmentError ?? "Rendez-vous introuvable"}
+        </p>
+      </SiteShell>
+    );
+  }
+
+  const service = appointment?.service ?? getService(s.service ?? "soin-energetique");
+  const practitioner = appointment
+    ? {
+        name: `${appointment.practitioner.user.firstName} ${appointment.practitioner.user.lastName}`,
+      }
+    : practitioners.find((p) => p.id === s.practitioner) ?? practitioners[0]!;
+  const appointmentDate = appointment ? new Date(appointment.startAt) : null;
+  const dateLabel = appointmentDate
+    ? appointmentDate.toLocaleDateString("fr-FR", {
+        timeZone: "Europe/Brussels",
+        weekday: "long",
+        day: "numeric",
+        month: "long",
+        year: "numeric",
+      })
+    : s.date
     ? new Date(s.date + "T00:00:00").toLocaleDateString("fr-FR", {
         weekday: "long",
         day: "numeric",
@@ -43,6 +96,14 @@ function Confirmation() {
         year: "numeric",
       })
     : "jeudi 20 août 2026";
+
+  const appointmentTime = appointmentDate
+    ? appointmentDate.toLocaleTimeString("fr-FR", {
+        timeZone: "Europe/Brussels",
+        hour: "2-digit",
+        minute: "2-digit",
+      })
+    : s.time ?? "10:30";
 
   return (
     <SiteShell>
@@ -63,7 +124,7 @@ function Confirmation() {
             {[
               ["Soin", service?.name ?? "—"],
               ["Date", dateLabel],
-              ["Heure", s.time ?? "10:30"],
+              ["Heure", appointmentTime],
               ["Durée", `${service?.duration ?? 60} minutes`],
               ["Praticienne", practitioner.name],
             ].map(([k, v]) => (
@@ -80,7 +141,7 @@ function Confirmation() {
             </div>
             <div className="flex items-center justify-between gap-6 py-4 text-sm">
               <dt className="text-muted-foreground">Numéro de confirmation</dt>
-              <dd className="font-mono text-right font-medium">MLN-4831</dd>
+              <dd className="font-mono text-right font-medium">{appointment?.id ?? "—"}</dd>
             </div>
           </dl>
         </div>

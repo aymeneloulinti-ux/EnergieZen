@@ -13,6 +13,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as AdminRouteImport } from './routes/admin'
 import { Route as CompteRouteImport } from './routes/compte'
 import { Route as ConfirmationRouteImport } from './routes/confirmation'
+import { Route as ConnexionRouteImport } from './routes/connexion'
 import { Route as PaiementRouteImport } from './routes/paiement'
 import { Route as ReservationRouteImport } from './routes/reservation'
 import { Route as AdminIndexRouteImport } from './routes/admin.index'
@@ -44,6 +45,11 @@ const CompteRoute = CompteRouteImport.update({
 const ConfirmationRoute = ConfirmationRouteImport.update({
   id: '/confirmation',
   path: '/confirmation',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ConnexionRoute = ConnexionRouteImport.update({
+  id: '/connexion',
+  path: '/connexion',
   getParentRoute: () => rootRouteImport,
 } as any)
 const PaiementRoute = PaiementRouteImport.update({
@@ -112,6 +118,7 @@ export interface FileRoutesByFullPath {
   '/admin': typeof AdminRouteWithChildren
   '/compte': typeof CompteRoute
   '/confirmation': typeof ConfirmationRoute
+  '/connexion': typeof ConnexionRoute
   '/paiement': typeof PaiementRoute
   '/reservation': typeof ReservationRoute
   '/admin/calendrier': typeof AdminCalendrierRoute
@@ -129,6 +136,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/compte': typeof CompteRoute
   '/confirmation': typeof ConfirmationRoute
+  '/connexion': typeof ConnexionRoute
   '/paiement': typeof PaiementRoute
   '/reservation': typeof ReservationRoute
   '/admin/calendrier': typeof AdminCalendrierRoute
@@ -148,6 +156,7 @@ export interface FileRoutesById {
   '/admin': typeof AdminRouteWithChildren
   '/compte': typeof CompteRoute
   '/confirmation': typeof ConfirmationRoute
+  '/connexion': typeof ConnexionRoute
   '/paiement': typeof PaiementRoute
   '/reservation': typeof ReservationRoute
   '/admin/calendrier': typeof AdminCalendrierRoute
@@ -168,6 +177,7 @@ export interface FileRouteTypes {
     | '/admin'
     | '/compte'
     | '/confirmation'
+    | '/connexion'
     | '/paiement'
     | '/reservation'
     | '/admin/calendrier'
@@ -185,6 +195,7 @@ export interface FileRouteTypes {
     | '/'
     | '/compte'
     | '/confirmation'
+    | '/connexion'
     | '/paiement'
     | '/reservation'
     | '/admin/calendrier'
@@ -203,6 +214,7 @@ export interface FileRouteTypes {
     | '/admin'
     | '/compte'
     | '/confirmation'
+    | '/connexion'
     | '/paiement'
     | '/reservation'
     | '/admin/calendrier'
@@ -222,6 +234,7 @@ export interface RootRouteChildren {
   AdminRoute: typeof AdminRouteWithChildren
   CompteRoute: typeof CompteRoute
   ConfirmationRoute: typeof ConfirmationRoute
+  ConnexionRoute: typeof ConnexionRoute
   PaiementRoute: typeof PaiementRoute
   ReservationRoute: typeof ReservationRoute
   SoinsSlugRoute: typeof SoinsSlugRoute
@@ -256,6 +269,13 @@ declare module '@tanstack/react-router' {
       path: '/confirmation'
       fullPath: '/confirmation'
       preLoaderRoute: typeof ConfirmationRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/connexion': {
+      id: '/connexion'
+      path: '/connexion'
+      fullPath: '/connexion'
+      preLoaderRoute: typeof ConnexionRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/paiement': {
@@ -374,6 +394,7 @@ const rootRouteChildren: RootRouteChildren = {
   AdminRoute: AdminRouteWithChildren,
   CompteRoute: CompteRoute,
   ConfirmationRoute: ConfirmationRoute,
+  ConnexionRoute: ConnexionRoute,
   PaiementRoute: PaiementRoute,
   ReservationRoute: ReservationRoute,
   SoinsSlugRoute: SoinsSlugRoute,

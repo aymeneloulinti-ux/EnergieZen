@@ -2,6 +2,7 @@ import { Link } from "@tanstack/react-router";
 import { useState } from "react";
 import { Menu, X } from "lucide-react";
 import { studio } from "@/data/site";
+import { useAuth } from "@/hooks/useAuth";
 
 const nav = [
   { to: "/", label: "Accueil" },
@@ -12,6 +13,7 @@ const nav = [
 
 export function SiteHeader() {
   const [open, setOpen] = useState(false);
+  const { isAuthenticated } = useAuth();
 
   return (
     <header className="sticky top-0 z-40 border-b border-border/60 bg-background/85 backdrop-blur-md">
@@ -32,7 +34,7 @@ export function SiteHeader() {
           {nav.map((n) => (
             <Link
               key={n.to}
-              to={n.to}
+              to={n.to === "/compte" && !isAuthenticated ? "/connexion" : n.to}
               className="text-sm text-muted-foreground transition-colors hover:text-foreground"
               activeProps={{ className: "text-sm text-foreground" }}
               activeOptions={{ exact: n.to === "/" }}
@@ -60,10 +62,10 @@ export function SiteHeader() {
 
       {open && (
         <div className="border-t border-border/60 bg-background px-5 pb-6 pt-2 md:hidden">
-          {nav.map((n) => (
+            {nav.map((n) => (
             <Link
               key={n.to}
-              to={n.to}
+              to={n.to === "/compte" && !isAuthenticated ? "/connexion" : n.to}
               onClick={() => setOpen(false)}
               className="block border-b border-border/50 py-3 text-sm text-foreground"
             >
