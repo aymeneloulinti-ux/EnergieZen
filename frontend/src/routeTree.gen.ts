@@ -23,6 +23,7 @@ import { Route as AdminClientsRouteImport } from './routes/admin.clients'
 import { Route as AdminDisponibilitesRouteImport } from './routes/admin.disponibilites'
 import { Route as AdminPaiementsRouteImport } from './routes/admin.paiements'
 import { Route as AdminParametresRouteImport } from './routes/admin.parametres'
+import { Route as AdminPraticiensRouteImport } from './routes/admin.praticiens'
 import { Route as AdminPrestationsRouteImport } from './routes/admin.prestations'
 import { Route as AdminRendezVousRouteImport } from './routes/admin.rendez-vous'
 import { Route as PraticienIndexRouteImport } from './routes/praticien.index'
@@ -103,6 +104,11 @@ const AdminParametresRoute = AdminParametresRouteImport.update({
   path: '/parametres',
   getParentRoute: () => AdminRoute,
 } as any)
+const AdminPraticiensRoute = AdminPraticiensRouteImport.update({
+  id: '/praticiens',
+  path: '/praticiens',
+  getParentRoute: () => AdminRoute,
+} as any)
 const AdminPrestationsRoute = AdminPrestationsRouteImport.update({
   id: '/prestations',
   path: '/prestations',
@@ -163,6 +169,7 @@ export interface FileRoutesByFullPath {
   '/admin/disponibilites': typeof AdminDisponibilitesRoute
   '/admin/paiements': typeof AdminPaiementsRoute
   '/admin/parametres': typeof AdminParametresRoute
+  '/admin/praticiens': typeof AdminPraticiensRoute
   '/admin/prestations': typeof AdminPrestationsRoute
   '/admin/rendez-vous': typeof AdminRendezVousRoute
   '/praticien/calendrier': typeof PraticienCalendrierRoute
@@ -186,6 +193,7 @@ export interface FileRoutesByTo {
   '/admin/disponibilites': typeof AdminDisponibilitesRoute
   '/admin/paiements': typeof AdminPaiementsRoute
   '/admin/parametres': typeof AdminParametresRoute
+  '/admin/praticiens': typeof AdminPraticiensRoute
   '/admin/prestations': typeof AdminPrestationsRoute
   '/admin/rendez-vous': typeof AdminRendezVousRoute
   '/praticien/calendrier': typeof PraticienCalendrierRoute
@@ -212,6 +220,7 @@ export interface FileRoutesById {
   '/admin/disponibilites': typeof AdminDisponibilitesRoute
   '/admin/paiements': typeof AdminPaiementsRoute
   '/admin/parametres': typeof AdminParametresRoute
+  '/admin/praticiens': typeof AdminPraticiensRoute
   '/admin/prestations': typeof AdminPrestationsRoute
   '/admin/rendez-vous': typeof AdminRendezVousRoute
   '/praticien/calendrier': typeof PraticienCalendrierRoute
@@ -239,6 +248,7 @@ export interface FileRouteTypes {
     | '/admin/disponibilites'
     | '/admin/paiements'
     | '/admin/parametres'
+    | '/admin/praticiens'
     | '/admin/prestations'
     | '/admin/rendez-vous'
     | '/praticien/calendrier'
@@ -262,6 +272,7 @@ export interface FileRouteTypes {
     | '/admin/disponibilites'
     | '/admin/paiements'
     | '/admin/parametres'
+    | '/admin/praticiens'
     | '/admin/prestations'
     | '/admin/rendez-vous'
     | '/praticien/calendrier'
@@ -287,6 +298,7 @@ export interface FileRouteTypes {
     | '/admin/disponibilites'
     | '/admin/paiements'
     | '/admin/parametres'
+    | '/admin/praticiens'
     | '/admin/prestations'
     | '/admin/rendez-vous'
     | '/praticien/calendrier'
@@ -412,6 +424,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminParametresRouteImport
       parentRoute: typeof AdminRoute
     }
+    '/admin/praticiens': {
+      id: '/admin/praticiens'
+      path: '/praticiens'
+      fullPath: '/admin/praticiens'
+      preLoaderRoute: typeof AdminPraticiensRouteImport
+      parentRoute: typeof AdminRoute
+    }
     '/admin/prestations': {
       id: '/admin/prestations'
       path: '/prestations'
@@ -484,6 +503,7 @@ interface AdminRouteChildren {
   AdminDisponibilitesRoute: typeof AdminDisponibilitesRoute
   AdminPaiementsRoute: typeof AdminPaiementsRoute
   AdminParametresRoute: typeof AdminParametresRoute
+  AdminPraticiensRoute: typeof AdminPraticiensRoute
   AdminPrestationsRoute: typeof AdminPrestationsRoute
   AdminRendezVousRoute: typeof AdminRendezVousRoute
   AdminIndexRoute: typeof AdminIndexRoute
@@ -495,6 +515,7 @@ const AdminRouteChildren: AdminRouteChildren = {
   AdminDisponibilitesRoute: AdminDisponibilitesRoute,
   AdminPaiementsRoute: AdminPaiementsRoute,
   AdminParametresRoute: AdminParametresRoute,
+  AdminPraticiensRoute: AdminPraticiensRoute,
   AdminPrestationsRoute: AdminPrestationsRoute,
   AdminRendezVousRoute: AdminRendezVousRoute,
   AdminIndexRoute: AdminIndexRoute,

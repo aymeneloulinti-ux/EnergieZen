@@ -83,8 +83,94 @@ export type Service = Omit<ApiService, "price" | "steps"> & {
   steps: { title: string; text: string }[];
 };
 
-export const getServices = () =>
-  api<ApiService[]>("/services");
+export const getServices = (auth = false) =>
+  api<ApiService[]>("/services", { auth });
+
+export const createService = (body: {
+  name: string;
+  slug: string;
+  description?: string;
+  imageUrl?: string;
+  benefits?: string[];
+  steps?: string[];
+  faq?: { q: string; a: string }[];
+  duration: number;
+  price: number;
+}) => api<ApiService>("/services", { method: "POST", auth: true, body: JSON.stringify(body) });
+
+export const updateService = (
+  id: string,
+  body: Partial<Omit<ApiService, "id" | "active" | "createdAt" | "updatedAt" | "price">> & {
+    price?: number;
+  },
+) => api<ApiService>(`/services/${encodeURIComponent(id)}`, { method: "PATCH", auth: true, body: JSON.stringify(body) });
+
+export const updateServiceStatus = (id: string, active: boolean) =>
+  api<ApiService>(`/services/${encodeURIComponent(id)}/status`, {
+    method: "PATCH",
+    auth: true,
+    body: JSON.stringify({ active }),
+  });
+
+export type ApiAdminDashboardStats = {
+  users: {
+    total: number;
+    clients: number;
+    practitioners: number;
+    admins: number;
+  };
+  services: {
+    total: number;
+    active: number;
+  };
+  appointments: {
+    total: number;
+    pending: number;
+    confirmed: number;
+    completed: number;
+    cancelled: number;
+    noShow: number;
+  };
+};
+
+export const getAdminDashboardStats = () =>
+  api<ApiAdminDashboardStats>("/admin/dashboard", { auth: true });
+
+export type ApiAdminAppointment = {
+  id: string;
+  startAt: string;
+  endAt: string;
+  status: ApiAppointmentStatus;
+  client: ApiAuthResponse["user"];
+  practitioner: ApiAdminPractitioner;
+  service: ApiService;
+};
+
+export const getAdminAppointments = (params?: {
+  status?: ApiAppointmentStatus;
+  practitionerId?: string;
+  from?: string;
+  to?: string;
+}) => {
+  const search = new URLSearchParams();
+  if (params?.status) search.set("status", params.status);
+  if (params?.practitionerId) search.set("practitionerId", params.practitionerId);
+  if (params?.from) search.set("from", params.from);
+  if (params?.to) search.set("to", params.to);
+  const query = search.toString();
+  return api<ApiAdminAppointment[]>(`/admin/appointments${query ? `?${query}` : ""}`, { auth: true });
+};
+
+export const updateAdminAppointmentStatus = (
+  id: string,
+  status: Exclude<ApiAppointmentStatus, "PENDING">,
+  cancellationReason?: string,
+) =>
+  api<ApiAdminAppointment>(`/admin/appointments/${encodeURIComponent(id)}/status`, {
+    method: "PATCH",
+    auth: true,
+    body: JSON.stringify({ status, cancellationReason }),
+  });
 
 export type ApiAuthResponse = {
   user: {
@@ -112,6 +198,44 @@ export const login = (body: { email: string; password: string }) =>
 export type ApiUser = ApiAuthResponse["user"];
 
 export const getCurrentUser = () => api<ApiUser>("/users/me", { auth: true });
+
+export type ApiAdminUser = ApiUser & {
+  active: boolean;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export const getUsers = () => api<ApiAdminUser[]>("/users", { auth: true });
+
+export const getAdminClients = () => api<ApiAdminUser[]>("/admin/clients", { auth: true });
+
+export type ApiAdminPractitioner = {
+  id: string;
+  user: ApiAdminUser;
+  services: ApiService[];
+};
+
+export const getAdminPractitioners = () =>
+  api<ApiAdminPractitioner[]>("/admin/practitioners", { auth: true });
+
+export const addServiceToPractitioner = (practitionerId: string, serviceId: string) =>
+  api<ApiAdminPractitioner>(
+    `/practitioners/${encodeURIComponent(practitionerId)}/services/${encodeURIComponent(serviceId)}`,
+    { method: "POST", auth: true },
+  );
+
+export const removeServiceFromPractitioner = (practitionerId: string, serviceId: string) =>
+  api<ApiAdminPractitioner>(
+    `/practitioners/${encodeURIComponent(practitionerId)}/services/${encodeURIComponent(serviceId)}`,
+    { method: "DELETE", auth: true },
+  );
+
+export const updateUserStatus = (id: string, active: boolean) =>
+  api<ApiAdminUser>(`/users/${encodeURIComponent(id)}/status`, {
+    method: "PATCH",
+    auth: true,
+    body: JSON.stringify({ active }),
+  });
 
 export type ApiPractitioner = {
   id: string;

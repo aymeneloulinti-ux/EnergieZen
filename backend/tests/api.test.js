@@ -1,5 +1,7 @@
+import "dotenv/config";
 import test, { before, after } from "node:test";
 import assert from "node:assert/strict";
+import prisma from "../src/config/prisma.js";
 
 const BASE_URL = "http://localhost:3000/api";
 
@@ -25,6 +27,50 @@ const fixtures = {
     service: null,
     practitioner: null
 };
+
+const temporaryTestEmailPrefixes = [
+    "other-",
+    "busy-"
+];
+
+after(async () => {
+    try {
+        const temporaryUsers = await prisma.user.findMany({
+            where: {
+                OR: temporaryTestEmailPrefixes.map((prefix) => ({
+                    email: {
+                        startsWith: prefix
+                    }
+                }))
+            },
+            select: {
+                id: true
+            }
+        });
+
+        const temporaryUserIds = temporaryUsers.map((user) => user.id);
+
+        if (temporaryUserIds.length > 0) {
+            await prisma.appointment.deleteMany({
+                where: {
+                    clientId: {
+                        in: temporaryUserIds
+                    }
+                }
+            });
+
+            await prisma.user.deleteMany({
+                where: {
+                    id: {
+                        in: temporaryUserIds
+                    }
+                }
+            });
+        }
+    } finally {
+        await prisma.$disconnect();
+    }
+});
 
 let uniqueDateOffset = 12;
 
@@ -952,6 +998,98 @@ test("ADMIN - Client interdit du dashboard", async () => {
 
     const response = await request(
         "/admin/dashboard",
+        {
+            token: tokens.client
+        }
+    );
+
+    assert.equal(response.status, 403);
+});
+
+test("ADMIN - Liste des clients accessible", async () => {
+
+    const response = await request(
+        "/admin/clients",
+        {
+            token: tokens.admin
+        }
+    );
+
+    assert.equal(response.status, 200);
+    assert.ok(Array.isArray(response.data));
+    assert.ok(response.data.every((user) => user.role === "CLIENT"));
+    assert.ok(response.data.every((user) => user.active !== undefined));
+});
+
+test("ADMIN - Liste des praticiens accessible", async () => {
+
+    const response = await request(
+        "/admin/practitioners",
+        {
+            token: tokens.admin
+        }
+    );
+
+    assert.equal(response.status, 200);
+    assert.ok(Array.isArray(response.data));
+    assert.ok(response.data.every((practitioner) => practitioner.user?.role === "PRACTITIONER"));
+    assert.ok(response.data.every((practitioner) => Array.isArray(practitioner.services)));
+});
+
+test("ADMIN - Client interdit des listes administrateur", async () => {
+
+    const clientsResponse = await request(
+        "/admin/clients",
+        {
+            token: tokens.client
+        }
+    );
+
+    const practitionersResponse = await request(
+        "/admin/practitioners",
+        {
+            token: tokens.client
+        }
+    );
+
+    assert.equal(clientsResponse.status, 403);
+    assert.equal(practitionersResponse.status, 403);
+});
+
+test("ADMIN - Liste globale des rendez-vous accessible", async () => {
+
+    const response = await request(
+        "/admin/appointments",
+        {
+            token: tokens.admin
+        }
+    );
+
+    assert.equal(response.status, 200);
+    assert.ok(Array.isArray(response.data));
+    assert.ok(response.data.every((appointment) => appointment.client));
+    assert.ok(response.data.every((appointment) => appointment.practitioner));
+    assert.ok(response.data.every((appointment) => appointment.service));
+});
+
+test("ADMIN - Filtre des rendez-vous par statut", async () => {
+
+    const response = await request(
+        "/admin/appointments?status=PENDING",
+        {
+            token: tokens.admin
+        }
+    );
+
+    assert.equal(response.status, 200);
+    assert.ok(Array.isArray(response.data));
+    assert.ok(response.data.every((appointment) => appointment.status === "PENDING"));
+});
+
+test("ADMIN - Client interdit de la liste globale des rendez-vous", async () => {
+
+    const response = await request(
+        "/admin/appointments",
         {
             token: tokens.client
         }

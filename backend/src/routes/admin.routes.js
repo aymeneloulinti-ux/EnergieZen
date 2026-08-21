@@ -1,7 +1,11 @@
 import { Router } from "express";
 
 import {
-    getDashboardStats
+    getDashboardStats,
+    getAdminClients,
+    getAdminPractitioners,
+    getAdminAppointments,
+    updateAdminAppointmentStatus
 } from "../controllers/admin.controller.js";
 
 import { authenticate } from "../middlewares/auth.middleware.js";
@@ -15,6 +19,26 @@ router.use(requireRole("ADMIN"));
 router.get(
     "/dashboard",
     getDashboardStats
+);
+
+router.get(
+    "/clients",
+    getAdminClients
+);
+
+router.get(
+    "/practitioners",
+    getAdminPractitioners
+);
+
+router.get(
+    "/appointments",
+    getAdminAppointments
+);
+
+router.patch(
+    "/appointments/:id/status",
+    updateAdminAppointmentStatus
 );
 
 export default router;
