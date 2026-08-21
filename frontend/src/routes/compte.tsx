@@ -33,7 +33,7 @@ const tabs = ["Tableau de bord", "Mes rendez-vous", "Historique", "Mon profil"] 
 
 function Compte() {
   const navigate = useNavigate();
-  const { user, loading: authLoading, isAuthenticated, logout } = useAuth();
+  const { user, loading: authLoading, isAuthenticated, isClient, isAdmin, logout } = useAuth();
   const [appointments, setAppointments] = useState<ApiAppointment[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -63,10 +63,15 @@ function Compte() {
   };
 
   useEffect(() => {
-    if (!authLoading && !isAuthenticated) {
-      void navigate({ to: "/connexion", search: { redirect: "/compte" } });
+    if (!authLoading) {
+      if (!isAuthenticated) {
+        void navigate({ to: "/connexion", search: { redirect: "/compte" } });
+      } else if (!isClient && !isAdmin) {
+        // If not CLIENT or ADMIN, redirect to their own space
+        void navigate({ to: "/praticien" });
+      }
     }
-  }, [authLoading, isAuthenticated, navigate]);
+  }, [authLoading, isAuthenticated, isClient, isAdmin, navigate]);
 
   useEffect(() => {
     if (!isAuthenticated) return;

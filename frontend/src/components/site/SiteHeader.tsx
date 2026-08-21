@@ -8,12 +8,15 @@ const nav = [
   { to: "/", label: "Accueil" },
   { to: "/soins", label: "Soins" },
   { to: "/reservation", label: "Réserver" },
-  { to: "/compte", label: "Mon espace" },
 ];
 
 export function SiteHeader() {
   const [open, setOpen] = useState(false);
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, isAdmin, isPractitioner, isClient } = useAuth();
+
+  // Determine the account space link based on role
+  const accountLink = isAdmin ? "/admin" : isPractitioner ? "/praticien" : isClient ? "/compte" : undefined;
+  const accountLabel = isAdmin ? "Administration" : isPractitioner ? "Espace praticien" : "Mon espace";
 
   return (
     <header className="sticky top-0 z-40 border-b border-border/60 bg-background/85 backdrop-blur-md">
@@ -34,7 +37,7 @@ export function SiteHeader() {
           {nav.map((n) => (
             <Link
               key={n.to}
-              to={n.to === "/compte" && !isAuthenticated ? "/connexion" : n.to}
+              to={n.to}
               className="text-sm text-muted-foreground transition-colors hover:text-foreground"
               activeProps={{ className: "text-sm text-foreground" }}
               activeOptions={{ exact: n.to === "/" }}
@@ -42,6 +45,15 @@ export function SiteHeader() {
               {n.label}
             </Link>
           ))}
+          {accountLink && (
+            <Link
+              to={accountLink}
+              className="text-sm text-muted-foreground transition-colors hover:text-foreground"
+              activeProps={{ className: "text-sm text-foreground" }}
+            >
+              {accountLabel}
+            </Link>
+          )}
           <Link
             to="/reservation"
             className="rounded-full bg-primary px-5 py-2.5 text-sm text-primary-foreground transition-opacity hover:opacity-90"
@@ -62,16 +74,25 @@ export function SiteHeader() {
 
       {open && (
         <div className="border-t border-border/60 bg-background px-5 pb-6 pt-2 md:hidden">
-            {nav.map((n) => (
+          {nav.map((n) => (
             <Link
               key={n.to}
-              to={n.to === "/compte" && !isAuthenticated ? "/connexion" : n.to}
+              to={n.to}
               onClick={() => setOpen(false)}
               className="block border-b border-border/50 py-3 text-sm text-foreground"
             >
               {n.label}
             </Link>
           ))}
+          {accountLink && (
+            <Link
+              to={accountLink}
+              onClick={() => setOpen(false)}
+              className="block border-b border-border/50 py-3 text-sm text-foreground"
+            >
+              {accountLabel}
+            </Link>
+          )}
           <Link
             to="/reservation"
             onClick={() => setOpen(false)}

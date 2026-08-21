@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ApiError } from "@/lib/api";
 import { useAuth } from "@/hooks/useAuth";
+import { roleDefaultPaths, canAccessPath } from "@/lib/route-protection";
 
 export const Route = createFileRoute("/connexion")({
   validateSearch: (search: Record<string, unknown>) => ({
@@ -18,15 +19,25 @@ export const Route = createFileRoute("/connexion")({
 function Connexion() {
   const navigate = useNavigate();
   const { redirect } = Route.useSearch();
-  const { isAuthenticated, loading: authLoading, login, register } = useAuth();
+  const { user, isAuthenticated, loading: authLoading, login, register, role } = useAuth();
   const [mode, setMode] = useState<"login" | "register">("login");
   const [form, setForm] = useState({ firstName: "", lastName: "", email: "", phone: "", password: "", confirmation: "" });
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
-    if (!authLoading && isAuthenticated) void navigate({ to: redirect || "/compte" });
-  }, [authLoading, isAuthenticated, navigate, redirect]);
+    if (!authLoading && isAuthenticated && role) {
+      // Determine redirect destination based on role
+      let destination = roleDefaultPaths[role as keyof typeof roleDefaultPaths] || "/compte";
+      
+      // If a specific redirect was requested and it's accessible to this role, use it
+      if (redirect && canAccessPath(redirect, role)) {
+        destination = redirect;
+      }
+      
+      void navigate({ to: destination });
+    }
+  }, [authLoading, isAuthenticated, role, navigate, redirect]);
 
   if (authLoading || isAuthenticated) return null;
 
@@ -50,7 +61,7 @@ function Connexion() {
           phone: form.phone,
         });
       }
-      await navigate({ to: redirect || "/compte" });
+      // Navigation will happen automatically via useEffect above
     } catch (reason) {
       if (reason instanceof ApiError && reason.status === 401) {
         setError("Impossible de vous connecter. Vérifiez votre adresse e-mail et votre mot de passe.");

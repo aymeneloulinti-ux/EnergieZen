@@ -15,6 +15,7 @@ import { Route as CompteRouteImport } from './routes/compte'
 import { Route as ConfirmationRouteImport } from './routes/confirmation'
 import { Route as ConnexionRouteImport } from './routes/connexion'
 import { Route as PaiementRouteImport } from './routes/paiement'
+import { Route as PraticienRouteImport } from './routes/praticien'
 import { Route as ReservationRouteImport } from './routes/reservation'
 import { Route as AdminIndexRouteImport } from './routes/admin.index'
 import { Route as AdminCalendrierRouteImport } from './routes/admin.calendrier'
@@ -24,6 +25,11 @@ import { Route as AdminPaiementsRouteImport } from './routes/admin.paiements'
 import { Route as AdminParametresRouteImport } from './routes/admin.parametres'
 import { Route as AdminPrestationsRouteImport } from './routes/admin.prestations'
 import { Route as AdminRendezVousRouteImport } from './routes/admin.rendez-vous'
+import { Route as PraticienIndexRouteImport } from './routes/praticien.index'
+import { Route as PraticienCalendrierRouteImport } from './routes/praticien.calendrier'
+import { Route as PraticienClientsRouteImport } from './routes/praticien.clients'
+import { Route as PraticienDisponibilitesRouteImport } from './routes/praticien.disponibilites'
+import { Route as PraticienRendezVousRouteImport } from './routes/praticien.rendez-vous'
 import { Route as SoinsIndexRouteImport } from './routes/soins.index'
 import { Route as SoinsSlugRouteImport } from './routes/soins.$slug'
 
@@ -55,6 +61,11 @@ const ConnexionRoute = ConnexionRouteImport.update({
 const PaiementRoute = PaiementRouteImport.update({
   id: '/paiement',
   path: '/paiement',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PraticienRoute = PraticienRouteImport.update({
+  id: '/praticien',
+  path: '/praticien',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ReservationRoute = ReservationRouteImport.update({
@@ -102,6 +113,31 @@ const AdminRendezVousRoute = AdminRendezVousRouteImport.update({
   path: '/rendez-vous',
   getParentRoute: () => AdminRoute,
 } as any)
+const PraticienIndexRoute = PraticienIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => PraticienRoute,
+} as any)
+const PraticienCalendrierRoute = PraticienCalendrierRouteImport.update({
+  id: '/calendrier',
+  path: '/calendrier',
+  getParentRoute: () => PraticienRoute,
+} as any)
+const PraticienClientsRoute = PraticienClientsRouteImport.update({
+  id: '/clients',
+  path: '/clients',
+  getParentRoute: () => PraticienRoute,
+} as any)
+const PraticienDisponibilitesRoute = PraticienDisponibilitesRouteImport.update({
+  id: '/disponibilites',
+  path: '/disponibilites',
+  getParentRoute: () => PraticienRoute,
+} as any)
+const PraticienRendezVousRoute = PraticienRendezVousRouteImport.update({
+  id: '/rendez-vous',
+  path: '/rendez-vous',
+  getParentRoute: () => PraticienRoute,
+} as any)
 const SoinsIndexRoute = SoinsIndexRouteImport.update({
   id: '/soins/',
   path: '/soins/',
@@ -120,6 +156,7 @@ export interface FileRoutesByFullPath {
   '/confirmation': typeof ConfirmationRoute
   '/connexion': typeof ConnexionRoute
   '/paiement': typeof PaiementRoute
+  '/praticien': typeof PraticienRouteWithChildren
   '/reservation': typeof ReservationRoute
   '/admin/calendrier': typeof AdminCalendrierRoute
   '/admin/clients': typeof AdminClientsRoute
@@ -128,8 +165,13 @@ export interface FileRoutesByFullPath {
   '/admin/parametres': typeof AdminParametresRoute
   '/admin/prestations': typeof AdminPrestationsRoute
   '/admin/rendez-vous': typeof AdminRendezVousRoute
+  '/praticien/calendrier': typeof PraticienCalendrierRoute
+  '/praticien/clients': typeof PraticienClientsRoute
+  '/praticien/disponibilites': typeof PraticienDisponibilitesRoute
+  '/praticien/rendez-vous': typeof PraticienRendezVousRoute
   '/soins/$slug': typeof SoinsSlugRoute
   '/admin/': typeof AdminIndexRoute
+  '/praticien/': typeof PraticienIndexRoute
   '/soins/': typeof SoinsIndexRoute
 }
 export interface FileRoutesByTo {
@@ -146,8 +188,13 @@ export interface FileRoutesByTo {
   '/admin/parametres': typeof AdminParametresRoute
   '/admin/prestations': typeof AdminPrestationsRoute
   '/admin/rendez-vous': typeof AdminRendezVousRoute
+  '/praticien/calendrier': typeof PraticienCalendrierRoute
+  '/praticien/clients': typeof PraticienClientsRoute
+  '/praticien/disponibilites': typeof PraticienDisponibilitesRoute
+  '/praticien/rendez-vous': typeof PraticienRendezVousRoute
   '/soins/$slug': typeof SoinsSlugRoute
   '/admin': typeof AdminIndexRoute
+  '/praticien': typeof PraticienIndexRoute
   '/soins': typeof SoinsIndexRoute
 }
 export interface FileRoutesById {
@@ -158,6 +205,7 @@ export interface FileRoutesById {
   '/confirmation': typeof ConfirmationRoute
   '/connexion': typeof ConnexionRoute
   '/paiement': typeof PaiementRoute
+  '/praticien': typeof PraticienRouteWithChildren
   '/reservation': typeof ReservationRoute
   '/admin/calendrier': typeof AdminCalendrierRoute
   '/admin/clients': typeof AdminClientsRoute
@@ -166,8 +214,13 @@ export interface FileRoutesById {
   '/admin/parametres': typeof AdminParametresRoute
   '/admin/prestations': typeof AdminPrestationsRoute
   '/admin/rendez-vous': typeof AdminRendezVousRoute
+  '/praticien/calendrier': typeof PraticienCalendrierRoute
+  '/praticien/clients': typeof PraticienClientsRoute
+  '/praticien/disponibilites': typeof PraticienDisponibilitesRoute
+  '/praticien/rendez-vous': typeof PraticienRendezVousRoute
   '/soins/$slug': typeof SoinsSlugRoute
   '/admin/': typeof AdminIndexRoute
+  '/praticien/': typeof PraticienIndexRoute
   '/soins/': typeof SoinsIndexRoute
 }
 export interface FileRouteTypes {
@@ -179,6 +232,7 @@ export interface FileRouteTypes {
     | '/confirmation'
     | '/connexion'
     | '/paiement'
+    | '/praticien'
     | '/reservation'
     | '/admin/calendrier'
     | '/admin/clients'
@@ -187,8 +241,13 @@ export interface FileRouteTypes {
     | '/admin/parametres'
     | '/admin/prestations'
     | '/admin/rendez-vous'
+    | '/praticien/calendrier'
+    | '/praticien/clients'
+    | '/praticien/disponibilites'
+    | '/praticien/rendez-vous'
     | '/soins/$slug'
     | '/admin/'
+    | '/praticien/'
     | '/soins/'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -205,8 +264,13 @@ export interface FileRouteTypes {
     | '/admin/parametres'
     | '/admin/prestations'
     | '/admin/rendez-vous'
+    | '/praticien/calendrier'
+    | '/praticien/clients'
+    | '/praticien/disponibilites'
+    | '/praticien/rendez-vous'
     | '/soins/$slug'
     | '/admin'
+    | '/praticien'
     | '/soins'
   id:
     | '__root__'
@@ -216,6 +280,7 @@ export interface FileRouteTypes {
     | '/confirmation'
     | '/connexion'
     | '/paiement'
+    | '/praticien'
     | '/reservation'
     | '/admin/calendrier'
     | '/admin/clients'
@@ -224,8 +289,13 @@ export interface FileRouteTypes {
     | '/admin/parametres'
     | '/admin/prestations'
     | '/admin/rendez-vous'
+    | '/praticien/calendrier'
+    | '/praticien/clients'
+    | '/praticien/disponibilites'
+    | '/praticien/rendez-vous'
     | '/soins/$slug'
     | '/admin/'
+    | '/praticien/'
     | '/soins/'
   fileRoutesById: FileRoutesById
 }
@@ -236,6 +306,7 @@ export interface RootRouteChildren {
   ConfirmationRoute: typeof ConfirmationRoute
   ConnexionRoute: typeof ConnexionRoute
   PaiementRoute: typeof PaiementRoute
+  PraticienRoute: typeof PraticienRouteWithChildren
   ReservationRoute: typeof ReservationRoute
   SoinsSlugRoute: typeof SoinsSlugRoute
   SoinsIndexRoute: typeof SoinsIndexRoute
@@ -283,6 +354,13 @@ declare module '@tanstack/react-router' {
       path: '/paiement'
       fullPath: '/paiement'
       preLoaderRoute: typeof PaiementRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/praticien': {
+      id: '/praticien'
+      path: '/praticien'
+      fullPath: '/praticien'
+      preLoaderRoute: typeof PraticienRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/reservation': {
@@ -348,6 +426,41 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminRendezVousRouteImport
       parentRoute: typeof AdminRoute
     }
+    '/praticien/': {
+      id: '/praticien/'
+      path: '/'
+      fullPath: '/praticien/'
+      preLoaderRoute: typeof PraticienIndexRouteImport
+      parentRoute: typeof PraticienRoute
+    }
+    '/praticien/calendrier': {
+      id: '/praticien/calendrier'
+      path: '/calendrier'
+      fullPath: '/praticien/calendrier'
+      preLoaderRoute: typeof PraticienCalendrierRouteImport
+      parentRoute: typeof PraticienRoute
+    }
+    '/praticien/clients': {
+      id: '/praticien/clients'
+      path: '/clients'
+      fullPath: '/praticien/clients'
+      preLoaderRoute: typeof PraticienClientsRouteImport
+      parentRoute: typeof PraticienRoute
+    }
+    '/praticien/disponibilites': {
+      id: '/praticien/disponibilites'
+      path: '/disponibilites'
+      fullPath: '/praticien/disponibilites'
+      preLoaderRoute: typeof PraticienDisponibilitesRouteImport
+      parentRoute: typeof PraticienRoute
+    }
+    '/praticien/rendez-vous': {
+      id: '/praticien/rendez-vous'
+      path: '/rendez-vous'
+      fullPath: '/praticien/rendez-vous'
+      preLoaderRoute: typeof PraticienRendezVousRouteImport
+      parentRoute: typeof PraticienRoute
+    }
     '/soins/': {
       id: '/soins/'
       path: '/soins'
@@ -389,6 +502,26 @@ const AdminRouteChildren: AdminRouteChildren = {
 
 const AdminRouteWithChildren = AdminRoute._addFileChildren(AdminRouteChildren)
 
+interface PraticienRouteChildren {
+  PraticienCalendrierRoute: typeof PraticienCalendrierRoute
+  PraticienClientsRoute: typeof PraticienClientsRoute
+  PraticienDisponibilitesRoute: typeof PraticienDisponibilitesRoute
+  PraticienRendezVousRoute: typeof PraticienRendezVousRoute
+  PraticienIndexRoute: typeof PraticienIndexRoute
+}
+
+const PraticienRouteChildren: PraticienRouteChildren = {
+  PraticienCalendrierRoute: PraticienCalendrierRoute,
+  PraticienClientsRoute: PraticienClientsRoute,
+  PraticienDisponibilitesRoute: PraticienDisponibilitesRoute,
+  PraticienRendezVousRoute: PraticienRendezVousRoute,
+  PraticienIndexRoute: PraticienIndexRoute,
+}
+
+const PraticienRouteWithChildren = PraticienRoute._addFileChildren(
+  PraticienRouteChildren,
+)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AdminRoute: AdminRouteWithChildren,
@@ -396,6 +529,7 @@ const rootRouteChildren: RootRouteChildren = {
   ConfirmationRoute: ConfirmationRoute,
   ConnexionRoute: ConnexionRoute,
   PaiementRoute: PaiementRoute,
+  PraticienRoute: PraticienRouteWithChildren,
   ReservationRoute: ReservationRoute,
   SoinsSlugRoute: SoinsSlugRoute,
   SoinsIndexRoute: SoinsIndexRoute,

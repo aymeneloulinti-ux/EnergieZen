@@ -16,6 +16,18 @@ export class ApiError extends Error {
     super(message);
     this.name = "ApiError";
   }
+
+  isUnauthorized(): boolean {
+    return this.status === 401;
+  }
+
+  isForbidden(): boolean {
+    return this.status === 403;
+  }
+
+  isAuthError(): boolean {
+    return this.isUnauthorized() || this.isForbidden();
+  }
 }
 
 export async function api<T>(
@@ -181,3 +193,33 @@ export const updateMyProfile = (body: {
   lastName: string;
   phone: string;
 }) => api<ApiUser>("/users/me", { method: "PATCH", auth: true, body: JSON.stringify(body) });
+
+/**
+ * Handle API authentication errors globally
+ * - 401: Clear session and redirect to login
+ * - 403: Redirect to role-appropriate space
+ * Optionally pass handlers for custom behavior
+ */
+export const handleApiAuthError = (
+  error: unknown,
+  options?: {
+    onUnauthorized?: () => void;
+    onForbidden?: () => void;
+  },
+): boolean => {
+  if (!(error instanceof ApiError)) return false;
+
+  if (error.isUnauthorized()) {
+    // Clear session
+    localStorage.removeItem("token");
+    options?.onUnauthorized?.();
+    return true;
+  }
+
+  if (error.isForbidden()) {
+    options?.onForbidden?.();
+    return true;
+  }
+
+  return false;
+};

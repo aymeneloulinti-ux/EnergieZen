@@ -62,10 +62,21 @@ export const useAuth = () => {
     };
   }, []);
 
+  const role = currentUser?.role;
+  const isAdmin = role === "ADMIN";
+  const isPractitioner = role === "PRACTITIONER";
+  const isClient = role === "CLIENT";
+  const hasRole = (requiredRole: string) => role === requiredRole;
+
   return {
     user: currentUser,
     isAuthenticated: !!currentUser,
     loading: authLoading,
+    role,
+    isAdmin,
+    isPractitioner,
+    isClient,
+    hasRole,
     login: async (email: string, password: string) => persistAuth(await loginRequest({ email, password })),
     register: async (data: RegisterData) => persistAuth(await registerRequest(data)),
     logout: () => {
